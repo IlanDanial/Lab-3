@@ -1,0 +1,25 @@
+# Build outputs (the lab says not to submit compiled binaries)
+epm/epm
+mlp/mlp
+*.o
+*.exe
+
+# Helper binary that run.slurm builds inside each logs/ folder
+devinfo
+
+# Slurm stdout/stderr (run.slurm also copies everything into logs/)
+slurm-*.out
+slurm-*.err
+
+# Course-supplied materials (not my work)
+*.pdf
+*.zip
+
+# Local-only notes and drafts, never pushed
+private/
+
+# IDE and OS files
+.vscode/
+.vs/
+.DS_Store
+Thumbs.db

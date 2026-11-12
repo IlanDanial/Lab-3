@@ -1,0 +1,4 @@
+# Normalize line endings; keep shell and Slurm scripts LF so sbatch on HiPerGator accepts them.
+* text=auto
+*.slurm text eol=lf
+*.sh text eol=lf

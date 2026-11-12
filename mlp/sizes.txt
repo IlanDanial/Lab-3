@@ -1,0 +1,21 @@
+# Test argument sets for Option B. These tests must be run for submission.
+# Format:  ./mlp B n0 n1 n2 n3 seed [options]
+
+# --- correctness (CPU reference runs; each takes seconds) ---
+./mlp 100 37 53 29 10 1
+./mlp 257 784 500 300 10 2
+./mlp 1000 100 70 40 10 3
+./mlp 33 17 19 23 5 4
+./mlp 64 64 64 64 64 5
+
+# Memory checker on a ragged case (GPU node).
+compute-sanitizer --tool memcheck --error-exitcode 1 ./mlp 100 37 53 29 10 1
+
+# --- benchmark size ---
+# A plain run executes the baseline and your version, so it takes about twice as long.
+./mlp 4093 1000 1990 1010 500 7 --iters 100
+# student-only run, reusing a baseline time you measured earlier (ms per iteration)
+./mlp 4093 1000 1990 1010 500 7 --iters 100 --skip-baseline --baseline-ms <MS>
+# skip the CPU reference when you only want timing; your output is compared with the baseline
+./mlp 4093 1000 1990 1010 500 7 --iters 100 --skip-ref
+
