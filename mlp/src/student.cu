@@ -21,9 +21,9 @@ static float *s_X = nullptr, *s_W[3] = {nullptr, nullptr, nullptr}, *s_b[3] = {n
 static float *s_h1 = nullptr, *s_h2 = nullptr, *s_out = nullptr;
 
 constexpr int TILE = 16;      // threads per block side
-constexpr int R = 4;          // each thread computes R x R outputs
-constexpr int BT = TILE * R;  // outputs per block side (64)
-constexpr int BK = 16;        // k-depth of a shared tile
+constexpr int R = 8;          // each thread computes R x R outputs (best in sweep)
+constexpr int BT = TILE * R;  // outputs per block side (128)
+constexpr int BK = 32;        // k-depth of a shared tile (best in sweep)
 
 // Y[r][c] = sum_k X[r][k] * W[k][c]      (W transposed in setup: IN x OUT)
 // Thread owns rows ty + TILE*i, cols tx + TILE*j: conflict-free shared reads, coalesced writes
