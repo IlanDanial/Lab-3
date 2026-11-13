@@ -17,6 +17,7 @@ slurm-*.err
 
 # Local-only notes and drafts, never pushed
 private/
+report.md
 
 # IDE and OS files
 .vscode/
