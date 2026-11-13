@@ -10,6 +10,7 @@
 // See include/problem.h and README.md for the full requirements.
 
 #include <cstddef>
+#include <vector>
 #include <cuda_runtime.h>
 #include "cuda_check.h"
 #include "params.h"
@@ -19,13 +20,13 @@ static int s_B, s_n[4];
 static float *s_X = nullptr, *s_W[3] = {nullptr, nullptr, nullptr}, *s_b[3] = {nullptr, nullptr, nullptr};
 static float *s_h1 = nullptr, *s_h2 = nullptr, *s_out = nullptr;
 
-// Y[r][c] = sum_k X[r][k] * W[c][k]      (W is stored OUT x IN)
+// Y[r][c] = sum_k X[r][k] * W[k][c]      (W transposed in setup: IN x OUT)
 __global__ void matmul_student(const float* X, const float* W, float* Y, int B, int n_in, int n_out) {
   int row = blockIdx.y * blockDim.y + threadIdx.y;
   int col = blockIdx.x * blockDim.x + threadIdx.x;
   if (row < B && col < n_out) {
     float sum = 0.0f;
-    for (int k = 0; k < n_in; k++) sum += X[row * n_in + k] * W[col * n_in + k];
+    for (int k = 0; k < n_in; k++) sum += X[row * n_in + k] * W[k * n_out + col];
     Y[row * n_out + col] = sum;
   }
 }
@@ -49,8 +50,12 @@ void mlp_student_setup(const MlpProblem& p) {
   for (int i = 0; i < 4; i++) s_n[i] = p.n[i];
   upload(&s_X, p.X, (size_t)p.B * p.n[0]);
   for (int l = 0; l < MLP_LAYERS; l++) {
-    upload(&s_W[l], p.W[l], (size_t)p.n[l + 1] * p.n[l]);
-    upload(&s_b[l], p.b[l], (size_t)p.n[l + 1]);
+    const int n_in = p.n[l], n_out = p.n[l + 1];
+    std::vector<float> wt((size_t)n_in * n_out);   // IN x OUT, for coalesced reads
+    for (int j = 0; j < n_out; j++)
+      for (int k = 0; k < n_in; k++) wt[(size_t)k * n_out + j] = p.W[l][(size_t)j * n_in + k];
+    upload(&s_W[l], wt.data(), wt.size());
+    upload(&s_b[l], p.b[l], (size_t)n_out);
   }
   CHECK(cudaMalloc((void**)&s_h1, (size_t)p.B * p.n[1] * sizeof(float)));
   CHECK(cudaMalloc((void**)&s_h2, (size_t)p.B * p.n[2] * sizeof(float)));
