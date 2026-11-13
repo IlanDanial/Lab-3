@@ -20,25 +20,43 @@ static int s_B, s_n[4];
 static float *s_X = nullptr, *s_W[3] = {nullptr, nullptr, nullptr}, *s_b[3] = {nullptr, nullptr, nullptr};
 static float *s_h1 = nullptr, *s_h2 = nullptr, *s_out = nullptr;
 
-constexpr int TILE = 16;
+constexpr int TILE = 16;      // threads per block side
+constexpr int R = 4;          // each thread computes R x R outputs
+constexpr int BT = TILE * R;  // outputs per block side (64)
+constexpr int BK = 16;        // k-depth of a shared tile
 
 // Y[r][c] = sum_k X[r][k] * W[k][c]      (W transposed in setup: IN x OUT)
+// Thread owns rows ty + TILE*i, cols tx + TILE*j: conflict-free shared reads, coalesced writes
 __global__ void matmul_student(const float* X, const float* W, float* Y, int B, int n_in, int n_out) {
-  __shared__ float Xs[TILE][TILE];
-  __shared__ float Ws[TILE][TILE];
-  const int tx = threadIdx.x, ty = threadIdx.y;
-  const int row = blockIdx.y * TILE + ty;
-  const int col = blockIdx.x * TILE + tx;
-  float sum = 0.0f;
-  for (int k0 = 0; k0 < n_in; k0 += TILE) {
-    // Zero-fill outside the matrix so the inner loop needs no checks
-    Xs[ty][tx] = (row < B && k0 + tx < n_in) ? X[row * n_in + k0 + tx] : 0.0f;
-    Ws[ty][tx] = (k0 + ty < n_in && col < n_out) ? W[(k0 + ty) * n_out + col] : 0.0f;
+  __shared__ float Xs[BT][BK];
+  __shared__ float Ws[BK][BT];
+  const int tx = threadIdx.x, ty = threadIdx.y, tid = ty * TILE + tx;
+  const int row0 = blockIdx.y * BT, col0 = blockIdx.x * BT;
+  float acc[R][R] = {};
+  for (int k0 = 0; k0 < n_in; k0 += BK) {
+    // Both tiles hold BT*BK values; zero-fill past the edges
+    for (int e = tid; e < BT * BK; e += TILE * TILE) {
+      const int xr = row0 + e / BK, xk = k0 + e % BK;
+      Xs[e / BK][e % BK] = (xr < B && xk < n_in) ? X[xr * n_in + xk] : 0.0f;
+      const int wk = k0 + e / BT, wc = col0 + e % BT;
+      Ws[e / BT][e % BT] = (wk < n_in && wc < n_out) ? W[wk * n_out + wc] : 0.0f;
+    }
     __syncthreads();
-    for (int k = 0; k < TILE; k++) sum += Xs[ty][k] * Ws[k][tx];
+#pragma unroll
+    for (int k = 0; k < BK; k++) {
+      float x[R], w[R];
+      for (int i = 0; i < R; i++) x[i] = Xs[ty + TILE * i][k];
+      for (int j = 0; j < R; j++) w[j] = Ws[k][tx + TILE * j];
+      for (int i = 0; i < R; i++)
+        for (int j = 0; j < R; j++) acc[i][j] += x[i] * w[j];
+    }
     __syncthreads();
   }
-  if (row < B && col < n_out) Y[row * n_out + col] = sum;
+  for (int i = 0; i < R; i++)
+    for (int j = 0; j < R; j++) {
+      const int r = row0 + ty + TILE * i, c = col0 + tx + TILE * j;
+      if (r < B && c < n_out) Y[r * n_out + c] = acc[i][j];
+    }
 }
 
 __global__ void bias_relu_student(float* Y, const float* b, int B, int n_out, int relu) {
@@ -78,7 +96,7 @@ void mlp_student_compute() {
   for (int l = 0; l < MLP_LAYERS; l++) {
     const int n_in = s_n[l], n_out = s_n[l + 1];
     dim3 block(TILE, TILE);
-    dim3 grid((n_out + TILE - 1) / TILE, (s_B + TILE - 1) / TILE);
+    dim3 grid((n_out + BT - 1) / BT, (s_B + BT - 1) / BT);
     matmul_student<<<grid, block>>>(in[l], s_W[l], outp[l], s_B, n_in, n_out);
     const int total = s_B * n_out;
     bias_relu_student<<<(total + 255) / 256, 256>>>(outp[l], s_b[l], s_B, n_out, l < MLP_LAYERS - 1 ? 1 : 0);
