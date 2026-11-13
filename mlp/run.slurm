@@ -191,8 +191,7 @@ if command -v ncu > /dev/null; then
     NCU_STATUS="BLOCKED: no permission to read GPU performance counters"
   elif [[ -f "$LOGDIR/profile.ncu-rep" ]]; then
     ncu --import "$LOGDIR/profile.ncu-rep" --page details > "$LOGDIR/profile.txt" 2>&1
-    grep -E '\)x\(|Duration|Throughput|Hit Rate|Achieved Occupancy|Registers Per Thread|op_ld\.sum' \
-      "$LOGDIR/profile.txt" > "$LOGDIR/profile_summary.txt"
+    bash profile_table.sh "$LOGDIR/profile.txt" > "$LOGDIR/profile_summary.txt"
     NCU_STATUS="works, see profile_summary.txt (full: profile.txt, profile.ncu-rep)"
   else
     NCU_STATUS="unclear, see ncu.log"
