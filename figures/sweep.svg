@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="478" viewBox="0 0 1100 478" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<rect width="1100" height="478" fill="#fcfcfb"/>
+<text x="24.0" y="32.0" font-size="18" fill="#0b0b0b" text-anchor="start" font-weight="600">Parameter sweep: outputs per thread (R) × tile depth (BK)</text>
+<text x="24.0" y="54.0" font-size="12" fill="#52514e" text-anchor="start" font-weight="normal">Median per-iteration time, 5 runs each · ./mlp 4093 1000 1990 1010 500 7 --iters 100 · NVIDIA L4 · job 51233254</text>
+<line x1="24.0" y1="80.0" x2="42.0" y2="80.0" stroke="#2a78d6" stroke-width="2"/>
+<circle cx="33" cy="80" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<text x="48.0" y="84.0" font-size="12" fill="#0b0b0b" text-anchor="start" font-weight="normal">BK = 8</text>
+<line x1="120.0" y1="80.0" x2="138.0" y2="80.0" stroke="#eb6834" stroke-width="2"/>
+<circle cx="129" cy="80" r="4.5" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<text x="144.0" y="84.0" font-size="12" fill="#0b0b0b" text-anchor="start" font-weight="normal">BK = 16</text>
+<line x1="216.0" y1="80.0" x2="234.0" y2="80.0" stroke="#1baf7a" stroke-width="2"/>
+<circle cx="225" cy="80" r="4.5" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2"/>
+<text x="240.0" y="84.0" font-size="12" fill="#0b0b0b" text-anchor="start" font-weight="normal">BK = 32</text>
+<text x="320.0" y="84.0" font-size="11" fill="#898781" text-anchor="start" font-weight="normal">In A, BK = 16 and BK = 32 overlap (within 1%); B shows the difference.</text>
+<text x="24.0" y="116.0" font-size="13" fill="#0b0b0b" text-anchor="start" font-weight="600">A. Time vs outputs per thread</text>
+<line x1="80.0" y1="420.0" x2="640.0" y2="420.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="72.0" y="424.0" font-size="11" fill="#898781" text-anchor="end" font-weight="normal">4</text>
+<line x1="80.0" y1="384.7" x2="640.0" y2="384.7" stroke="#e1e0d9" stroke-width="1"/>
+<text x="72.0" y="388.7" font-size="11" fill="#898781" text-anchor="end" font-weight="normal">5</text>
+<line x1="80.0" y1="355.8" x2="640.0" y2="355.8" stroke="#e1e0d9" stroke-width="1"/>
+<text x="72.0" y="359.8" font-size="11" fill="#898781" text-anchor="end" font-weight="normal">6</text>
+<line x1="80.0" y1="310.3" x2="640.0" y2="310.3" stroke="#e1e0d9" stroke-width="1"/>
+<text x="72.0" y="314.3" font-size="11" fill="#898781" text-anchor="end" font-weight="normal">8</text>
+<line x1="80.0" y1="275.0" x2="640.0" y2="275.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="72.0" y="279.0" font-size="11" fill="#898781" text-anchor="end" font-weight="normal">10</text>
+<line x1="80.0" y1="210.8" x2="640.0" y2="210.8" stroke="#e1e0d9" stroke-width="1"/>
+<text x="72.0" y="214.8" font-size="11" fill="#898781" text-anchor="end" font-weight="normal">15</text>
+<line x1="80.0" y1="165.3" x2="640.0" y2="165.3" stroke="#e1e0d9" stroke-width="1"/>
+<text x="72.0" y="169.3" font-size="11" fill="#898781" text-anchor="end" font-weight="normal">20</text>
+<line x1="80.0" y1="130.0" x2="640.0" y2="130.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="72.0" y="134.0" font-size="11" fill="#898781" text-anchor="end" font-weight="normal">25</text>
+<text x="36" y="275.0" font-size="11" fill="#52514e" text-anchor="middle" transform="rotate(-90 36 275.0)">ms per forward pass (log scale)</text>
+<line x1="80.0" y1="420.0" x2="640.0" y2="420.0" stroke="#c3c2b7" stroke-width="1"/>
+<text x="130.0" y="440.0" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="600">R = 1</text>
+<text x="130.0" y="456.0" font-size="11" fill="#52514e" text-anchor="middle" font-weight="normal">40 regs · 100% occupancy</text>
+<text x="283.3" y="440.0" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="600">R = 2</text>
+<text x="283.3" y="456.0" font-size="11" fill="#52514e" text-anchor="middle" font-weight="normal">40 regs · 100% occupancy</text>
+<text x="436.7" y="440.0" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="600">R = 4</text>
+<text x="436.7" y="456.0" font-size="11" fill="#52514e" text-anchor="middle" font-weight="normal">64 regs · 67% occupancy</text>
+<text x="590.0" y="440.0" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="600">R = 8</text>
+<text x="590.0" y="456.0" font-size="11" fill="#52514e" text-anchor="middle" font-weight="normal">128 regs · 33% occupancy</text>
+<polyline points="130.0,150.5 283.3,255.1 436.7,339.9 590.0,390.9" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<polyline points="130.0,162.1 283.3,261.2 436.7,344.8 590.0,395.5" fill="none" stroke="#eb6834" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<polyline points="130.0,162.8 283.3,261.1 436.7,345.1 590.0,397.0" fill="none" stroke="#1baf7a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="130.0" y1="150.6" x2="130.0" y2="147.3" stroke="#2a78d6" stroke-width="1"/>
+<circle cx="130.0" cy="150.5" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<line x1="283.3" y1="255.2" x2="283.3" y2="254.8" stroke="#2a78d6" stroke-width="1"/>
+<circle cx="283.3" cy="255.1" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<line x1="436.7" y1="340.1" x2="436.7" y2="339.4" stroke="#2a78d6" stroke-width="1"/>
+<circle cx="436.7" cy="339.9" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<line x1="590.0" y1="391.1" x2="590.0" y2="389.9" stroke="#2a78d6" stroke-width="1"/>
+<circle cx="590.0" cy="390.9" r="4.5" fill="#2a78d6" stroke="#fcfcfb" stroke-width="2"/>
+<line x1="130.0" y1="162.5" x2="130.0" y2="158.9" stroke="#eb6834" stroke-width="1"/>
+<circle cx="130.0" cy="162.1" r="4.5" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<line x1="283.3" y1="261.5" x2="283.3" y2="261.2" stroke="#eb6834" stroke-width="1"/>
+<circle cx="283.3" cy="261.2" r="4.5" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<line x1="436.7" y1="345.4" x2="436.7" y2="344.5" stroke="#eb6834" stroke-width="1"/>
+<circle cx="436.7" cy="344.8" r="4.5" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<line x1="590.0" y1="395.9" x2="590.0" y2="395.2" stroke="#eb6834" stroke-width="1"/>
+<circle cx="590.0" cy="395.5" r="4.5" fill="#eb6834" stroke="#fcfcfb" stroke-width="2"/>
+<line x1="130.0" y1="163.0" x2="130.0" y2="162.5" stroke="#1baf7a" stroke-width="1"/>
+<circle cx="130.0" cy="162.8" r="4.5" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2"/>
+<line x1="283.3" y1="261.8" x2="283.3" y2="260.9" stroke="#1baf7a" stroke-width="1"/>
+<circle cx="283.3" cy="261.1" r="4.5" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2"/>
+<line x1="436.7" y1="345.9" x2="436.7" y2="344.8" stroke="#1baf7a" stroke-width="1"/>
+<circle cx="436.7" cy="345.1" r="4.5" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2"/>
+<line x1="590.0" y1="397.3" x2="590.0" y2="396.8" stroke="#1baf7a" stroke-width="1"/>
+<circle cx="590.0" cy="397.0" r="4.5" fill="#1baf7a" stroke="#fcfcfb" stroke-width="2"/>
+<text x="142.0" y="152.8" font-size="11" fill="#52514e" text-anchor="start" font-weight="normal">20.3 ms</text>
+<text x="295.3" y="251.2" font-size="11" fill="#52514e" text-anchor="start" font-weight="normal">10.9 ms</text>
+<text x="448.7" y="335.1" font-size="11" fill="#52514e" text-anchor="start" font-weight="normal">6.42 ms</text>
+<text x="602.0" y="387.0" font-size="11" fill="#52514e" text-anchor="start" font-weight="normal">4.63 ms</text>
+<text x="684.0" y="116.0" font-size="13" fill="#0b0b0b" text-anchor="start" font-weight="600">B. BK effect: change vs BK = 16</text>
+<rect x="730" y="333.0" width="346" height="58.0" fill="#e1e0d9" opacity="0.6"/>
+<text x="1076.0" y="116.0" font-size="11" fill="#898781" text-anchor="end" font-weight="normal">gray band = ±1% run-to-run noise</text>
+<line x1="730.0" y1="420.0" x2="1076.0" y2="420.0" stroke="#e1e0d9" stroke-width="1"/>
+<line x1="730.0" y1="304.0" x2="1076.0" y2="304.0" stroke="#e1e0d9" stroke-width="1"/>
+<line x1="730.0" y1="246.0" x2="1076.0" y2="246.0" stroke="#e1e0d9" stroke-width="1"/>
+<line x1="730.0" y1="188.0" x2="1076.0" y2="188.0" stroke="#e1e0d9" stroke-width="1"/>
+<line x1="730.0" y1="130.0" x2="1076.0" y2="130.0" stroke="#e1e0d9" stroke-width="1"/>
+<text x="722.0" y="424.0" font-size="11" fill="#898781" text-anchor="end" font-weight="normal">-2%</text>
+<text x="722.0" y="366.0" font-size="11" fill="#898781" text-anchor="end" font-weight="normal">0%</text>
+<text x="722.0" y="308.0" font-size="11" fill="#898781" text-anchor="end" font-weight="normal">+2%</text>
+<text x="722.0" y="250.0" font-size="11" fill="#898781" text-anchor="end" font-weight="normal">+4%</text>
+<text x="722.0" y="192.0" font-size="11" fill="#898781" text-anchor="end" font-weight="normal">+6%</text>
+<text x="722.0" y="134.0" font-size="11" fill="#898781" text-anchor="end" font-weight="normal">+8%</text>
+<line x1="730.0" y1="362.0" x2="1076.0" y2="362.0" stroke="#c3c2b7" stroke-width="1"/>
+<path d="M754.25,362.0 L754.25,144.43817532305246 Q754.25,140.43817532305246 758.25,140.43817532305246 L768.25,140.43817532305246 Q772.25,140.43817532305246 772.25,144.43817532305246 L772.25,362.0 Z" fill="#2a78d6"/>
+<text x="763.2" y="134.4" font-size="10" fill="#52514e" text-anchor="middle" font-weight="normal">+7.6%</text>
+<path d="M774.25,362.0 L792.25,362.0 L792.25,369.76660835305677 Q792.25,373.76660835305677 788.25,373.76660835305677 L778.25,373.76660835305677 Q774.25,373.76660835305677 774.25,369.76660835305677 Z" fill="#1baf7a"/>
+<text x="773.2" y="440.0" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="600">R = 1</text>
+<path d="M840.75,362.0 L840.75,251.24300144829212 Q840.75,247.24300144829212 844.75,247.24300144829212 L854.75,247.24300144829212 Q858.75,247.24300144829212 858.75,251.24300144829212 L858.75,362.0 Z" fill="#2a78d6"/>
+<text x="849.8" y="241.2" font-size="10" fill="#52514e" text-anchor="middle" font-weight="normal">+4.0%</text>
+<path d="M860.75,362.0 L860.75,360.8436577630299 Q860.75,359.6873155260598 861.9063422369701,359.6873155260598 L877.5936577630299,359.6873155260598 Q878.75,359.6873155260598 878.75,360.8436577630299 L878.75,362.0 Z" fill="#1baf7a"/>
+<text x="859.8" y="440.0" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="600">R = 2</text>
+<path d="M927.25,362.0 L927.25,273.6703043870285 Q927.25,269.6703043870285 931.25,269.6703043870285 L941.25,269.6703043870285 Q945.25,269.6703043870285 945.25,273.6703043870285 L945.25,362.0 Z" fill="#2a78d6"/>
+<text x="936.2" y="263.7" font-size="10" fill="#52514e" text-anchor="middle" font-weight="normal">+3.2%</text>
+<path d="M947.25,362.0 L965.25,362.0 L965.25,364.32176724808005 Q965.25,366.64353449616004 962.92823275192,366.64353449616004 L949.57176724808,366.64353449616004 Q947.25,366.64353449616004 947.25,364.32176724808005 Z" fill="#1baf7a"/>
+<text x="946.2" y="440.0" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="600">R = 4</text>
+<path d="M1013.75,362.0 L1013.75,279.93700618803916 Q1013.75,275.93700618803916 1017.75,275.93700618803916 L1027.75,275.93700618803916 Q1031.75,275.93700618803916 1031.75,279.93700618803916 L1031.75,362.0 Z" fill="#2a78d6"/>
+<text x="1022.8" y="269.9" font-size="10" fill="#52514e" text-anchor="middle" font-weight="normal">+3.0%</text>
+<path d="M1033.75,362.0 L1051.75,362.0 L1051.75,385.7562469220392 Q1051.75,389.7562469220392 1047.75,389.7562469220392 L1037.75,389.7562469220392 Q1033.75,389.7562469220392 1033.75,385.7562469220392 Z" fill="#1baf7a"/>
+<text x="1032.8" y="440.0" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="600">R = 8</text>
+</svg>
