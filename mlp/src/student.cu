@@ -20,15 +20,25 @@ static int s_B, s_n[4];
 static float *s_X = nullptr, *s_W[3] = {nullptr, nullptr, nullptr}, *s_b[3] = {nullptr, nullptr, nullptr};
 static float *s_h1 = nullptr, *s_h2 = nullptr, *s_out = nullptr;
 
+constexpr int TILE = 16;
+
 // Y[r][c] = sum_k X[r][k] * W[k][c]      (W transposed in setup: IN x OUT)
 __global__ void matmul_student(const float* X, const float* W, float* Y, int B, int n_in, int n_out) {
-  int row = blockIdx.y * blockDim.y + threadIdx.y;
-  int col = blockIdx.x * blockDim.x + threadIdx.x;
-  if (row < B && col < n_out) {
-    float sum = 0.0f;
-    for (int k = 0; k < n_in; k++) sum += X[row * n_in + k] * W[k * n_out + col];
-    Y[row * n_out + col] = sum;
+  __shared__ float Xs[TILE][TILE];
+  __shared__ float Ws[TILE][TILE];
+  const int tx = threadIdx.x, ty = threadIdx.y;
+  const int row = blockIdx.y * TILE + ty;
+  const int col = blockIdx.x * TILE + tx;
+  float sum = 0.0f;
+  for (int k0 = 0; k0 < n_in; k0 += TILE) {
+    // Zero-fill outside the matrix so the inner loop needs no checks
+    Xs[ty][tx] = (row < B && k0 + tx < n_in) ? X[row * n_in + k0 + tx] : 0.0f;
+    Ws[ty][tx] = (k0 + ty < n_in && col < n_out) ? W[(k0 + ty) * n_out + col] : 0.0f;
+    __syncthreads();
+    for (int k = 0; k < TILE; k++) sum += Xs[ty][k] * Ws[k][tx];
+    __syncthreads();
   }
+  if (row < B && col < n_out) Y[row * n_out + col] = sum;
 }
 
 __global__ void bias_relu_student(float* Y, const float* b, int B, int n_out, int relu) {
@@ -67,8 +77,8 @@ void mlp_student_compute() {
   float* outp[3] = {s_h1, s_h2, s_out};
   for (int l = 0; l < MLP_LAYERS; l++) {
     const int n_in = s_n[l], n_out = s_n[l + 1];
-    dim3 block(16, 16);
-    dim3 grid((n_out + 15) / 16, (s_B + 15) / 16);
+    dim3 block(TILE, TILE);
+    dim3 grid((n_out + TILE - 1) / TILE, (s_B + TILE - 1) / TILE);
     matmul_student<<<grid, block>>>(in[l], s_W[l], outp[l], s_B, n_in, n_out);
     const int total = s_B * n_out;
     bias_relu_student<<<(total + 255) / 256, 256>>>(outp[l], s_b[l], s_B, n_out, l < MLP_LAYERS - 1 ? 1 : 0);
