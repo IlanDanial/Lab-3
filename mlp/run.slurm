@@ -99,6 +99,11 @@ if ! run "$LOGDIR/build.log" make; then
   echo "BUILD FAILED, see $LOGDIR/build.log"
   exit 1
 fi
+# Registers per student kernel; STACK/LOCAL > 0 means spills to local memory
+cuobjdump -res-usage mlp 2>/dev/null | grep -A1 'Function.*student' | grep -v '^--' | tee "$LOGDIR/resources.txt"
+if [[ ! -s "$LOGDIR/resources.txt" ]]; then SPILLS="unknown"
+elif grep -oE '(STACK|LOCAL):[0-9]+' "$LOGDIR/resources.txt" | grep -qv ':0$'; then SPILLS="YES, see resources.txt"
+else SPILLS="none"; fi
 
 PASSED=0
 TOTAL=0
@@ -204,6 +209,7 @@ section "Summary"
   echo "GPU:          $GPU_NAME"
   echo "Correctness:  $PASSED/$TOTAL cases pass"
   echo "Sanitizer:    memcheck=$MEM1 (ragged), memcheck=$MEM2 (all dims < 32), racecheck=$RACE, synccheck=$SYNC"
+  echo "Spills:       $SPILLS"
   echo "Timing:       $REPEATS repeats, --iters $ITERS, ./mlp $BENCH"
   echo "  median baseline per_iter_ms: $BASE_MED"
   echo "  median student  per_iter_ms: $STU_MED"

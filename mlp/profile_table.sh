@@ -14,12 +14,14 @@ awk '
   /L2 Cache Throughput/       { l2[n] = $NF }
   /DRAM Throughput/ && $(NF-1) == "%" { dram[n] = $NF }
   /Compute \(SM\) Throughput/ { sm[n] = $NF }
+  /Registers Per Thread/      { regs[n] = $NF }
+  /Achieved Occupancy/        { occ[n] = $NF }
   END {
     half = (n % 2 == 0) ? n / 2 : n
-    printf "%-22s %-22s %8s %8s %7s %6s %6s %6s %6s\n", "kernel", "grid x block", "ms", "sect/req", "L1hit%", "L1%", "L2%", "DRAM%", "SM%"
+    printf "%-22s %-22s %8s %8s %7s %6s %6s %6s %6s %5s %5s\n", "kernel", "grid x block", "ms", "sect/req", "L1hit%", "L1%", "L2%", "DRAM%", "SM%", "regs", "occ%"
     for (i = 1; i <= half; i++) {
       spr = (req[i] > 0) ? sprintf("%.2f", sec[i] / req[i]) : "-"
-      printf "%-22s %-22s %8.3f %8s %7.1f %6.1f %6.1f %6.1f %6.1f\n", name[i], grid[i], dur[i], spr, l1hit[i], l1[i], l2[i], dram[i], sm[i]
+      printf "%-22s %-22s %8.3f %8s %7.1f %6.1f %6.1f %6.1f %6.1f %5d %5.1f\n", name[i], grid[i], dur[i], spr, l1hit[i], l1[i], l2[i], dram[i], sm[i], regs[i], occ[i]
       total += dur[i]
     }
     printf "total kernel time, one pass: %.3f ms (ncu clocks, not comparable to timed runs)\n", total
