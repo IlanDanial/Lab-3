@@ -11,25 +11,19 @@
 #SBATCH --account=eel4930
 #SBATCH --qos=eel4930
 
-# Lab 3, Option B (MLP): build, correctness, Compute Sanitizer, timing, ncu check.
-#
-# Submit from lab3/mlp:
-#   sbatch run.slurm                         # logs go to logs/run_<jobid>/
-#   sbatch run.slurm v1_tiled                # tag a version: logs/v1_tiled_<jobid>/
-#   REPEATS=7 ITERS=200 sbatch run.slurm v2  # more timing repeats or iterations
-#
-# Every job saves a copy of src/*.cu next to its logs, so each number in the
-# report can be traced back to the exact code that produced it.
+# Lab 3 MLP: build, tests, sanitizer, timing, ncu profile.
+# Usage (from mlp/): sbatch run.slurm [label]   env: REPEATS=5 ITERS=100
+# Output: logs/<label>_<jobid>/
 
 LABEL=${1:-run}
 LABEL=${LABEL//[^A-Za-z0-9_.-]/_}
 REPEATS=${REPEATS:-5}
 ITERS=${ITERS:-100}
-BENCH="4093 1000 1990 1010 500 7"   # benchmark size from sizes.txt
+BENCH="4093 1000 1990 1010 500 7"   # sizes.txt benchmark
 
 cd "${SLURM_SUBMIT_DIR:-.}" || exit 1
 if [[ ! -f Makefile || ! -f src/student.cu ]]; then
-  echo "ERROR: submit this from lab3/mlp (no Makefile or src/student.cu in $PWD)" >&2
+  echo "ERROR: submit from lab3/mlp (no Makefile or src/student.cu in $PWD)" >&2
   exit 1
 fi
 
@@ -40,8 +34,7 @@ cp src/*.cuh "$LOGDIR/src_snapshot/" 2>/dev/null
 
 FAILS=0
 section() { echo; echo "=== $* ==="; }
-# run <logfile> <command...>: print the command, run it, append output to logfile,
-# and return the command's own exit code (not tee's).
+# run <log> <cmd...>: tee to log, return the command's exit code
 run() {
   local log=$1; shift
   echo "\$ $*" | tee -a "$log"
@@ -51,10 +44,9 @@ run() {
   return "$rc"
 }
 
-# 1. Modules and environment
 module purge
 module load gcc cuda
-export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-4}   # the CPU reference uses OpenMP
+export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-4}   # CPU reference uses OpenMP
 
 GPU_IDX=${CUDA_VISIBLE_DEVICES%%,*}
 GPU_IDX=${GPU_IDX:-0}
@@ -66,18 +58,17 @@ section "Environment"
   echo "Label:   $LABEL"
   echo "Host:    $(hostname)"
   echo "Date:    $(date)"
-  echo "OpenMP threads for the CPU reference: $OMP_NUM_THREADS"
+  echo "OpenMP threads: $OMP_NUM_THREADS"
   nvidia-smi -i "$GPU_IDX" --query-gpu=name,driver_version,memory.total,clocks.max.sm,clocks.max.mem,power.limit --format=csv
   nvcc --version | tail -2
   gcc --version | head -1
 } 2>&1 | tee "$LOGDIR/env.txt"
 
 if [[ "$GPU_NAME" != *L4* ]]; then
-  echo "WARNING: this GPU is '$GPU_NAME', not an L4. Don't compare these timings with L4 runs." | tee -a "$LOGDIR/env.txt"
+  echo "WARNING: GPU is '$GPU_NAME', not an L4. Don't compare with L4 timings." | tee -a "$LOGDIR/env.txt"
 fi
 
-# Device limits for the occupancy and peak calculations (SM count, L2, registers, shared memory).
-# Built outside src/ so the lab Makefile never picks it up.
+# Device limits for occupancy math (built outside src/)
 cat > "$LOGDIR/devinfo.cu" <<'EOF'
 #include <cstdio>
 #include <cuda_runtime.h>
@@ -99,10 +90,9 @@ EOF
 if nvcc -o "$LOGDIR/devinfo" "$LOGDIR/devinfo.cu" > /dev/null 2>&1; then
   "$LOGDIR/devinfo" | tee -a "$LOGDIR/env.txt"
 else
-  echo "(could not build the device-info helper)" | tee -a "$LOGDIR/env.txt"
+  echo "(could not build devinfo)" | tee -a "$LOGDIR/env.txt"
 fi
 
-# 2. Build
 section "Build"
 make clean > /dev/null
 if ! run "$LOGDIR/build.log" make; then
@@ -110,13 +100,11 @@ if ! run "$LOGDIR/build.log" make; then
   exit 1
 fi
 
-# 3. Correctness against the CPU reference
 PASSED=0
 TOTAL=0
 check_case() {
   TOTAL=$((TOTAL + 1))
-  # $1 is left unquoted on purpose so it splits into separate arguments.
-  if run "$LOGDIR/correctness.log" ./mlp $1; then
+  if run "$LOGDIR/correctness.log" ./mlp $1; then   # $1 unquoted: split into args
     PASSED=$((PASSED + 1))
   else
     FAILS=$((FAILS + 1))
@@ -133,8 +121,7 @@ for c in "100 37 53 29 10 1" \
   check_case "$c"
 done
 
-# Not in sizes.txt. Grading uses a hidden size, so also cover all-ones,
-# width-1 layers, a single output, and the slide-example shape.
+# Not in sizes.txt: all-ones, width-1 layers, 1-wide output, slide shape
 section "Correctness: extra edge cases"
 for c in "1 1 1 1 1 11" \
          "3 5 1 7 1 12" \
@@ -143,13 +130,12 @@ for c in "1 1 1 1 1 11" \
   check_case "$c"
 done
 
-section "Correctness: benchmark size (CPU reference, 1 iteration)"
+section "Correctness: benchmark size"
 check_case "$BENCH --iters 1"
 
-# 4. Compute Sanitizer. memcheck is required; racecheck and synccheck are extra,
-#    but they catch missing __syncthreads() once shared-memory tiles are in use.
+# memcheck required; racecheck/synccheck catch __syncthreads() bugs
 section "Compute Sanitizer"
-san() {   # san <result variable> <tool> <mlp args>
+san() {   # san <result var> <tool> <mlp args>
   if run "$LOGDIR/sanitizer.log" compute-sanitizer --tool "$2" --error-exitcode 1 ./mlp $3; then
     printf -v "$1" PASS
   else
@@ -162,8 +148,7 @@ san MEM2 memcheck  "33 17 19 23 5 4"
 san RACE racecheck "100 37 53 29 10 1"
 san SYNC synccheck "100 37 53 29 10 1"
 
-# 5. Timing. Each repeat times baseline and student back to back on the same node,
-#    while the GPU's clocks and power are sampled in the background.
+# Baseline and student back to back; clocks/power sampled meanwhile
 section "Timing: $REPEATS repeats of ./mlp $BENCH --iters $ITERS --skip-ref"
 nvidia-smi -i "$GPU_IDX" \
   --query-gpu=timestamp,clocks.sm,clocks.mem,power.draw,temperature.gpu,utilization.gpu \
@@ -193,22 +178,27 @@ else
   SPEEDUP=$(awk -v b="$BASE_MED" -v s="$STU_MED" 'BEGIN { printf "%.2fx", b / s }')
 fi
 
-# 6. Can this account read GPU performance counters with Nsight Compute?
-section "Nsight Compute permission check"
+# After timing (ncu replays kernels). Each kernel appears twice: warm-up + timed call.
+section "Nsight Compute profile (student, benchmark size)"
 NCU_STATUS="ncu not found on PATH"
 if command -v ncu > /dev/null; then
-  run "$LOGDIR/ncu_check.log" ncu --launch-count 1 --section SpeedOfLight \
-    ./mlp 100 37 53 29 10 1 --skip-ref --skip-baseline
-  if grep -q "ERR_NVGPUCTRPERM" "$LOGDIR/ncu_check.log"; then
+  run "$LOGDIR/ncu.log" ncu -f -o "$LOGDIR/profile" \
+    --section SpeedOfLight --section MemoryWorkloadAnalysis \
+    --section Occupancy --section LaunchStats \
+    --metrics l1tex__t_requests_pipe_lsu_mem_global_op_ld.sum,l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum \
+    ./mlp $BENCH --iters 1 --skip-ref --skip-baseline
+  if grep -q "ERR_NVGPUCTRPERM" "$LOGDIR/ncu.log"; then
     NCU_STATUS="BLOCKED: no permission to read GPU performance counters"
-  elif grep -qi "speed of light" "$LOGDIR/ncu_check.log"; then
-    NCU_STATUS="works"
+  elif [[ -f "$LOGDIR/profile.ncu-rep" ]]; then
+    ncu --import "$LOGDIR/profile.ncu-rep" --page details > "$LOGDIR/profile.txt" 2>&1
+    grep -E '\)x\(|Duration|Throughput|Hit Rate|Achieved Occupancy|Registers Per Thread|op_ld\.sum' \
+      "$LOGDIR/profile.txt" > "$LOGDIR/profile_summary.txt"
+    NCU_STATUS="works, see profile_summary.txt (full: profile.txt, profile.ncu-rep)"
   else
-    NCU_STATUS="unclear, see ncu_check.log"
+    NCU_STATUS="unclear, see ncu.log"
   fi
 fi
 
-# 7. Summary
 section "Summary"
 {
   echo "Label:        $LABEL"
