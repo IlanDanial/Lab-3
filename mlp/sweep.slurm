@@ -99,6 +99,7 @@ for key in "${CONFIGS[@]}"; do
   [[ ${CHECK[$key]} == PASS ]] || continue
   ncu --kernel-name regex:matmul --launch-count 1 \
     --section SpeedOfLight --section Occupancy --section LaunchStats \
+    --metrics smsp__inst_executed_op_shared_ld.sum,l1tex__data_pipe_lsu_wavefronts_mem_shared_op_ld.sum,l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld.sum \
     "$BUILD/$key/mlp" $BENCH --iters 1 --skip-ref --skip-baseline > "$LOGDIR/$key/ncu.txt" 2>&1
 done
 
@@ -112,16 +113,19 @@ ncu_fields() {
        /Compute \(SM\) Throughput/ { sm = $NF }
        /Theoretical Occupancy/     { th = $NF }
        /Achieved Occupancy/        { ac = $NF }
-       END { printf "%s,%s,%s,%s,%s", d, l1, sm, th, ac }' "$1"
+       /inst_executed_op_shared_ld\.sum/               { v = $NF; gsub(/,/, "", v); si = v }
+       /wavefronts_mem_shared_op_ld\.sum/              { v = $NF; gsub(/,/, "", v); sw = v }
+       /bank_conflicts_pipe_lsu_mem_shared_op_ld\.sum/ { v = $NF; gsub(/,/, "", v); sc = v }
+       END { printf "%s,%s,%s,%s,%s,%s,%s,%s", d, l1, sm, th, ac, si, sw, sc }' "$1"
 }
 
 CSV="$LOGDIR/sweep.csv"
-echo "R,BK,check,median_ms,min_ms,max_ms,runs,regs,local_bytes,smem_bytes,layer1_ms_ncu,L1_pct,SM_pct,theor_occ_pct,achieved_occ_pct" > "$CSV"
+echo "R,BK,check,median_ms,min_ms,max_ms,runs,regs,local_bytes,smem_bytes,layer1_ms_ncu,L1_pct,SM_pct,theor_occ_pct,achieved_occ_pct,shld_inst,shld_wavefronts,shld_conflicts" > "$CSV"
 for key in "${CONFIGS[@]}"; do
   t=$(grep '^\[student\]' "$LOGDIR/$key/timing.log" 2>/dev/null | sed -E 's/.*per_iter_ms=([0-9.]+).*/\1/')
   if [[ -z "$t" ]]; then med=n/a; mn=n/a; mx=n/a; runs=0
   else med=$(median <<< "$t"); mn=$(sort -g <<< "$t" | head -1); mx=$(sort -g <<< "$t" | tail -1); runs=$(grep -c . <<< "$t"); fi
-  if [[ -f "$LOGDIR/$key/ncu.txt" ]]; then nf=$(ncu_fields "$LOGDIR/$key/ncu.txt"); else nf=",,,,"; fi
+  if [[ -f "$LOGDIR/$key/ncu.txt" ]]; then nf=$(ncu_fields "$LOGDIR/$key/ncu.txt"); else nf=",,,,,,,"; fi
   echo "$(key_r "$key"),$(key_bk "$key"),${CHECK[$key]},$med,$mn,$mx,$runs,${REGS[$key]},${LOCAL[$key]},${SMEM[$key]},$nf" >> "$CSV"
 done
 
