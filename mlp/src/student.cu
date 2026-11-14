@@ -141,11 +141,19 @@ matmul_student(const float* X, int ldx, const float* W, int ldw, float* Y, int l
     }
     if constexpr (NBUF == 1) __syncthreads();  // single buffer: protect it before the next load
   }
-  for (int i = 0; i < R; i++)
-    for (int j = 0; j < R; j++) {
-      const int r = row0 + ty + TILE * i, c = col0 + wcol(tx, j);
-      if (r < B && c < n_out) Y[r * ldy + c] = acc[i][j];  // padding columns stay zero
+  // One float4 store per group of 4 neighboring columns. ldy is a multiple of 4, so if the group
+  // starts before n_out it ends inside the row; lanes past n_out are padding and hold exact zeros
+  // (W's padding columns are zero), so the padding stays zero.
+  for (int i = 0; i < R; i++) {
+    const int r = row0 + ty + TILE * i;
+    if (r >= B) continue;
+    for (int g = 0; g < R / 4; g++) {
+      const int c = col0 + wcol(tx, 4 * g);
+      if (c < n_out)
+        *reinterpret_cast<float4*>(&Y[r * ldy + c]) =
+            make_float4(acc[i][4 * g], acc[i][4 * g + 1], acc[i][4 * g + 2], acc[i][4 * g + 3]);
     }
+  }
 }
 
 __global__ void bias_relu_student(float* Y, int ldy, const float* b, int B, int n_out, int relu) {
