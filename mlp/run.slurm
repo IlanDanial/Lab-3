@@ -105,6 +105,7 @@ if [[ ! -s "$LOGDIR/resources.txt" ]]; then SPILLS="unknown"
 elif grep -oE '(STACK|LOCAL):[0-9]+' "$LOGDIR/resources.txt" | grep -qv ':0$'; then SPILLS="YES, see resources.txt"
 else SPILLS="none"; fi
 bash sass_ffma.sh mlp > "$LOGDIR/sass_ffma.txt" 2>&1
+bash sass_ctrl.sh mlp > "$LOGDIR/sass_ctrl.txt" 2>&1
 
 PASSED=0
 TOTAL=0
@@ -218,6 +219,7 @@ section "Summary"
   echo "Sanitizer:    memcheck=$MEM1 (ragged), memcheck=$MEM2 (all dims < 32), racecheck=$RACE, synccheck=$SYNC"
   echo "Spills:       $SPILLS"
   echo "FFMA regs:    $(cat "$LOGDIR/sass_ffma.txt")"
+  echo "Control:      $(cat "$LOGDIR/sass_ctrl.txt")"
   echo "Timing:       $REPEATS repeats, --iters $ITERS, ./mlp $BENCH"
   echo "  median baseline per_iter_ms: $BASE_MED"
   echo "  median student  per_iter_ms: $STU_MED"

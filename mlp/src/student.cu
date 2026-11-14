@@ -55,15 +55,26 @@ __device__ __forceinline__ void load_tile(float (*Xs)[BK], float (*Ws)[BT], cons
                                           const float* W, int ldw, int B, int n_in,
                                           int row0, int col0, int k0, int tid) {
   constexpr int XQ = BK / 4, WQ = BT / 4;  // float4s per tile row
-  for (int e = tid; e < BT * XQ; e += TILE * TILE) {
-    const int r = e / XQ, q = 4 * (e % XQ), xr = row0 + r, xk = k0 + q;
-    const bool in = xr < B && xk < ldx;
-    copy4<ASYNC>(&Xs[r][q], in ? X + xr * ldx + xk : X, in);
+  constexpr int NT = TILE * TILE, XN = BT * XQ, WN = BK * WQ;  // threads, float4s per tile
+  // Fixed trip counts, fully unrolled: no loop branches or reconvergence (BSSY/BSYNC) per tile.
+  // The guard folds away when the tile size is a multiple of the thread count.
+#pragma unroll
+  for (int it = 0; it < (XN + NT - 1) / NT; it++) {
+    const int e = tid + it * NT;
+    if (XN % NT == 0 || e < XN) {
+      const int r = e / XQ, q = 4 * (e % XQ), xr = row0 + r, xk = k0 + q;
+      const bool in = xr < B && xk < ldx;
+      copy4<ASYNC>(&Xs[r][q], in ? X + xr * ldx + xk : X, in);
+    }
   }
-  for (int e = tid; e < BK * WQ; e += TILE * TILE) {
-    const int r = e / WQ, q = 4 * (e % WQ), wk = k0 + r, wc = col0 + q;
-    const bool in = wk < n_in && wc < ldw;
-    copy4<ASYNC>(&Ws[r][q], in ? W + wk * ldw + wc : W, in);
+#pragma unroll
+  for (int it = 0; it < (WN + NT - 1) / NT; it++) {
+    const int e = tid + it * NT;
+    if (WN % NT == 0 || e < WN) {
+      const int r = e / WQ, q = 4 * (e % WQ), wk = k0 + r, wc = col0 + q;
+      const bool in = wk < n_in && wc < ldw;
+      copy4<ASYNC>(&Ws[r][q], in ? W + wk * ldw + wc : W, in);
+    }
   }
 }
 
@@ -85,6 +96,7 @@ matmul_student(const float* X, int ldx, const float* W, int ldw, float* Y, int l
   const int nt = (n_in + BK - 1) / BK;
   float acc[R][R] = {};
   if constexpr (NBUF > 1) {
+#pragma unroll
     for (int s = 0; s < NBUF - 1; s++) {  // prologue: start tiles 0 .. NBUF-2
       if (s < nt) load_tile<true>(Xs[s], Ws[s], X, ldx, W, ldw, B, n_in, row0, col0, s * BK, tid);
       cp_async_commit();
