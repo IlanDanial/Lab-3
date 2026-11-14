@@ -56,7 +56,7 @@ awk '
     split("selected not_selected dispatch_stall long_scoreboard math_pipe_throttle barrier wait lg_throttle short_scoreboard mio_throttle", key, " ")
     split("sel notsel dispatch longsb maththr barrier wait lgthr shortsb mio", lab, " ")
     half = (n % 2 == 0) ? n / 2 : n
-    printf "\nstalls (warps per issued instr) %-6s", "total"
+    printf "\n%-32s %6s", "stalls (warps per issued instr)", "total"
     for (c = 1; c <= 10; c++) printf " %8s", lab[c]
     printf "\n"
     for (i = 1; i <= half && i <= b; i++) {
