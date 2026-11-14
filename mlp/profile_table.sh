@@ -1,15 +1,11 @@
 #!/bin/bash
-# Usage: bash profile_table.sh logs/<run>/profile.txt
+# Usage: bash profile_table.sh logs/<run>/profile.txt [logs/<run>/profile_raw.txt]
 # One row per kernel, first forward pass only (driver runs warm-up + timed pass).
 awk '
-  # ncu rule notes: a WRN/OPT/INF line starts a paragraph that runs to a blank or dashed line
-  /^ *(WRN|OPT|INF) / { inrule = 1; para = $0; sub(/^ *(WRN|OPT|INF) +/, "", para); next }
-  inrule && (/^ *$/ || /^ *-----/) {
-    inrule = 0
-    if (para ~ /stalled|highest-utilized|eligible/) notes[n] = notes[n] "\n  - " para
-    next
-  }
-  inrule { t = $0; sub(/^ +/, "", t); para = para " " t; next }
+  # Skip ncu rule prose (WRN/OPT/INF paragraphs) so it cannot be parsed as metrics
+  /^ *(WRN|OPT|INF) / { inrule = 1; next }
+  inrule && (/^ *$/ || /^ *-----/) { inrule = 0; next }
+  inrule { next }
 
   /\)x\(/ {
     n++; s = $1; sub(/\(.*/, "", s); name[n] = s
@@ -44,7 +40,30 @@ awk '
       for (i = 1; i <= half; i++)
         printf "%-22s %-22s %10s %9s %9s %8s %10s\n", name[i], grid[i], wc[i], el[i], ne[i], isb[i], (ins[i] != "" ? ins[i] : "-")
     }
-    for (i = 1; i <= half; i++)
-      if (notes[i] != "" && name[i] ~ /matmul/) printf "\nncu notes, %s %s:%s\n", name[i], grid[i], notes[i]
   }
 ' "$1"
+
+# Stall breakdown per multiply kernel (warps per issued instruction), from the raw page
+[[ -f "$2" ]] || exit 0
+awk '
+  FNR == NR { if (/\)x\(/) { n++; s = $1; sub(/\(.*/, "", s); name[n] = s } next }
+  /smsp__average_warps_issue_stalled_barrier_per_issue_active\.ratio/ { b++ }   # first reason = new kernel
+  /smsp__average_warps_issue_stalled_[a-z_]+_per_issue_active\.ratio/ {
+    r = $1; sub(/^smsp__average_warps_issue_stalled_/, "", r); sub(/_per_issue_active\.ratio$/, "", r)
+    st[b, r] = $NF; tot[b] += $NF
+  }
+  END {
+    split("selected not_selected dispatch_stall long_scoreboard math_pipe_throttle barrier wait lg_throttle short_scoreboard mio_throttle", key, " ")
+    split("sel notsel dispatch longsb maththr barrier wait lgthr shortsb mio", lab, " ")
+    half = (n % 2 == 0) ? n / 2 : n
+    printf "\nstalls (warps per issued instr) %-6s", "total"
+    for (c = 1; c <= 10; c++) printf " %8s", lab[c]
+    printf "\n"
+    for (i = 1; i <= half && i <= b; i++) {
+      if (name[i] !~ /matmul/) continue
+      printf "%-24s layer %d %6.2f", name[i], ++layer, tot[i]
+      for (c = 1; c <= 10; c++) printf " %8.2f", st[i, key[c]]
+      printf "\n"
+    }
+  }
+' "$1" "$2"
