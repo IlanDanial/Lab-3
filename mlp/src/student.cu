@@ -24,8 +24,8 @@ static float *s_h1 = nullptr, *s_h2 = nullptr, *s_out = nullptr;
 constexpr int TILE = 16;      // threads per block side
 constexpr int R = 8;          // each thread computes R x R outputs (best in sweep)
 constexpr int BT = TILE * R;  // outputs per block side (128)
-constexpr int BK = 32;        // k-depth of a shared tile (best in sweep)
-constexpr int NBUF = 1;       // 2 = prefetch next tile with cp.async (needs BK <= 16; measured slower)
+constexpr int BK = 16;        // k-depth of a shared tile (3 stages x 16 KB = 48 KB limit)
+constexpr int NBUF = 3;       // pipeline stages: 1 = load then compute; N = copy N-1 tiles ahead (cp.async)
 static_assert(BK % 4 == 0 && BT % 4 == 0, "tiles are copied as float4");
 
 // Copy 4 floats; out of bounds writes zeros and never reads src
@@ -74,17 +74,20 @@ matmul_student(const float* X, int ldx, const float* W, int ldw, float* Y, int l
   const int row0 = blockIdx.y * BT, col0 = blockIdx.x * BT;
   const int nt = (n_in + BK - 1) / BK;
   float acc[R][R] = {};
-  if constexpr (NBUF == 2) {
-    load_tile<true>(Xs[0], Ws[0], X, ldx, W, ldw, B, n_in, row0, col0, 0, tid);
-    __pipeline_commit();
+  if constexpr (NBUF > 1) {
+    for (int s = 0; s < NBUF - 1; s++) {  // prologue: start tiles 0 .. NBUF-2
+      if (s < nt) load_tile<true>(Xs[s], Ws[s], X, ldx, W, ldw, B, n_in, row0, col0, s * BK, tid);
+      __pipeline_commit();
+    }
   }
   for (int t = 0; t < nt; t++) {
-    const int cur = (NBUF == 2) ? (t & 1) : 0;
-    if constexpr (NBUF == 2) {
-      // Start tile t+1 into the other buffer (its readers finished at the last sync), then wait for tile t
-      if (t + 1 < nt) load_tile<true>(Xs[cur ^ 1], Ws[cur ^ 1], X, ldx, W, ldw, B, n_in, row0, col0, (t + 1) * BK, tid);
+    const int cur = (NBUF > 1) ? t % NBUF : 0;
+    if constexpr (NBUF > 1) {
+      // Start tile t+NBUF-1 into the buffer read in iteration t-1 (freed by its closing sync), then wait for tile t
+      const int nxt = t + NBUF - 1;
+      if (nxt < nt) load_tile<true>(Xs[nxt % NBUF], Ws[nxt % NBUF], X, ldx, W, ldw, B, n_in, row0, col0, nxt * BK, tid);
       __pipeline_commit();
-      __pipeline_wait_prior(1);
+      __pipeline_wait_prior(NBUF - 1);
     } else {
       load_tile<false>(Xs[0], Ws[0], X, ldx, W, ldw, B, n_in, row0, col0, t * BK, tid);
     }
