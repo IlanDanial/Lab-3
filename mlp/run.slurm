@@ -191,7 +191,7 @@ if command -v ncu > /dev/null; then
     --section SpeedOfLight --section MemoryWorkloadAnalysis \
     --section Occupancy --section LaunchStats \
     --section ComputeWorkloadAnalysis --section SchedulerStats --section WarpStateStats \
-    --metrics l1tex__t_requests_pipe_lsu_mem_global_op_ld.sum,l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum \
+    --metrics l1tex__t_requests_pipe_lsu_mem_global_op_ld.sum,l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum,smsp__inst_executed.sum \
     ./mlp $BENCH --iters 1 --skip-ref --skip-baseline
   if grep -q "ERR_NVGPUCTRPERM" "$LOGDIR/ncu.log"; then
     NCU_STATUS="BLOCKED: no permission to read GPU performance counters"

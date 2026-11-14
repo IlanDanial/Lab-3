@@ -29,6 +29,7 @@ awk '
   /Eligible Warps Per Scheduler/       { el[n] = $NF }
   /No Eligible/                        { ne[n] = $NF }
   /Issue Slots Busy/                   { isb[n] = $NF }
+  /smsp__inst_executed\.sum/           { v = $NF; gsub(/,/, "", v); ins[n] = sprintf("%.1f", v / 1e6) }
   END {
     half = (n % 2 == 0) ? n / 2 : n
     printf "%-22s %-22s %8s %8s %7s %6s %6s %6s %6s %5s %5s\n", "kernel", "grid x block", "ms", "sect/req", "L1hit%", "L1%", "L2%", "DRAM%", "SM%", "regs", "occ%"
@@ -39,9 +40,9 @@ awk '
     }
     printf "total kernel time, one pass: %.3f ms (ncu clocks, not comparable to timed runs)\n", total
     if (wc[1] != "") {
-      printf "\n%-22s %-22s %10s %9s %9s %8s\n", "kernel", "grid x block", "cyc/issue", "eligible", "noElig%", "issue%"
+      printf "\n%-22s %-22s %10s %9s %9s %8s %10s\n", "kernel", "grid x block", "cyc/issue", "eligible", "noElig%", "issue%", "instr(M)"
       for (i = 1; i <= half; i++)
-        printf "%-22s %-22s %10s %9s %9s %8s\n", name[i], grid[i], wc[i], el[i], ne[i], isb[i]
+        printf "%-22s %-22s %10s %9s %9s %8s %10s\n", name[i], grid[i], wc[i], el[i], ne[i], isb[i], (ins[i] != "" ? ins[i] : "-")
     }
     for (i = 1; i <= half; i++)
       if (notes[i] != "" && name[i] ~ /matmul/) printf "\nncu notes, %s %s:%s\n", name[i], grid[i], notes[i]
