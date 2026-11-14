@@ -26,6 +26,7 @@ constexpr int R = 8;          // each thread computes R x R outputs (best in swe
 constexpr int BT = TILE * R;  // outputs per block side (128)
 constexpr int BK = 16;        // k-depth of a shared tile (3 stages x 16 KB = 48 KB limit)
 constexpr int NBUF = 3;       // pipeline stages: 1 = load then compute; N = copy N-1 tiles ahead (cp.async)
+constexpr int ORDER = 0;      // FFMA order per k step: 0 = row by row, 1 = column by column, 2 = snake
 static_assert(BK % 4 == 0 && BT % 4 == 0, "tiles are copied as float4");
 
 // Copy 4 floats; out of bounds writes zeros and never reads src
@@ -100,8 +101,20 @@ matmul_student(const float* X, int ldx, const float* W, int ldw, float* Y, int l
         const float4 v = *reinterpret_cast<const float4*>(&Ws[cur][k][wcol(tx, 4 * g)]);
         w[4 * g] = v.x; w[4 * g + 1] = v.y; w[4 * g + 2] = v.z; w[4 * g + 3] = v.w;
       }
-      for (int i = 0; i < R; i++)
-        for (int j = 0; j < R; j++) acc[i][j] += x[i] * w[j];
+      // Order decides which operand repeats between consecutive FFMAs (register reuse cache)
+      if constexpr (ORDER == 0) {
+        for (int i = 0; i < R; i++)
+          for (int j = 0; j < R; j++) acc[i][j] += x[i] * w[j];
+      } else if constexpr (ORDER == 1) {
+        for (int j = 0; j < R; j++)
+          for (int i = 0; i < R; i++) acc[i][j] += x[i] * w[j];
+      } else {  // snake: odd rows run right to left, so each row change shares w[j]
+        for (int i = 0; i < R; i++)
+          for (int jj = 0; jj < R; jj++) {
+            const int j = (i & 1) ? R - 1 - jj : jj;
+            acc[i][j] += x[i] * w[j];
+          }
+      }
     }
     __syncthreads();
   }
