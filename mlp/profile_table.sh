@@ -8,7 +8,7 @@ awk '
   inrule { next }
 
   /\)x\(/ {
-    n++; s = $1; sub(/\(.*/, "", s); name[n] = s
+    n++; s = $0; sub(/\(.*/, "", s); k = split(s, a, " "); name[n] = a[k]   # last word before "(", skips "void"
     match($0, /\([0-9, ]+\)x\([0-9, ]+\)/); g = substr($0, RSTART, RLENGTH); gsub(/ /, "", g); grid[n] = g
   }
   /^ *Duration/ { v = $NF; if ($(NF-1) == "us") v /= 1000; if ($(NF-1) == "ns") v /= 1e6; dur[n] = v }
@@ -46,7 +46,7 @@ awk '
 # Stall breakdown per multiply kernel (warps per issued instruction), from the raw page
 [[ -f "$2" ]] || exit 0
 awk '
-  FNR == NR { if (/\)x\(/) { n++; s = $1; sub(/\(.*/, "", s); name[n] = s } next }
+  FNR == NR { if (/\)x\(/) { n++; s = $0; sub(/\(.*/, "", s); k = split(s, a, " "); name[n] = a[k] } next }
   /smsp__average_warps_issue_stalled_barrier_per_issue_active\.ratio/ { b++ }   # first reason = new kernel
   /smsp__average_warps_issue_stalled_[a-z_]+_per_issue_active\.ratio/ {
     r = $1; sub(/^smsp__average_warps_issue_stalled_/, "", r); sub(/_per_issue_active\.ratio$/, "", r)
