@@ -24,8 +24,8 @@ static float *s_h1 = nullptr, *s_h2 = nullptr, *s_out = nullptr;
 constexpr int TILE = 16;      // threads per block side
 constexpr int R = 8;          // each thread computes R x R outputs (best in sweep)
 constexpr int BT = TILE * R;  // outputs per block side (128)
-constexpr int BK = 16;        // k-depth of a shared tile (2 buffers at 32 would exceed 48 KB)
-constexpr int NBUF = 2;       // 2 = copy the next tile in the background (cp.async) while computing
+constexpr int BK = 32;        // k-depth of a shared tile (best in sweep)
+constexpr int NBUF = 1;       // 2 = prefetch next tile with cp.async (needs BK <= 16; measured slower)
 
 // Fill one X tile (BT x BK) and one W tile (BK x BT); zero-fill past the edges
 template <bool ASYNC>
