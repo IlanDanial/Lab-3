@@ -11,14 +11,15 @@
 #SBATCH --account=eel4930
 #SBATCH --qos=eel4930
 
-# Lab 3 MLP: build, tests, sanitizer, timing, ncu profile.
-# Usage (from mlp/): sbatch run.slurm [label]   env: REPEATS=5 ITERS=100
+# Lab 3 MLP: build, tests, sanitizer, timing, sustained energy, ncu profile.
+# Usage (from mlp/): sbatch run.slurm [label]   env: REPEATS=5 ITERS=100 ENERGY_ITERS=2000
 # Output: logs/<label>_<jobid>/
 
 LABEL=${1:-run}
 LABEL=${LABEL//[^A-Za-z0-9_.-]/_}
 REPEATS=${REPEATS:-5}
 ITERS=${ITERS:-100}
+ENERGY_ITERS=${ENERGY_ITERS:-2000}
 BENCH="4093 1000 1990 1010 500 7"   # sizes.txt benchmark
 
 cd "${SLURM_SUBMIT_DIR:-.}" || exit 1
@@ -185,6 +186,31 @@ else
   SPEEDUP=$(awk -v b="$BASE_MED" -v s="$STU_MED" 'BEGIN { printf "%.2fx", b / s }')
 fi
 
+# Student alone at sustained load (power cap): median clock and power over busy samples, energy per pass
+section "Sustained energy: student only, --iters $ENERGY_ITERS"
+nvidia-smi -i "$GPU_IDX" --query-gpu=clocks.sm,power.draw,utilization.gpu \
+  --format=csv,noheader,nounits -lms 100 > "$LOGDIR/energy_samples.csv" 2>&1 &
+SMI_E=$!
+run "$LOGDIR/energy.log" ./mlp $BENCH --iters "$ENERGY_ITERS" --skip-ref --skip-baseline
+kill "$SMI_E" 2>/dev/null
+PER_E=$(grep '^\[student\]' "$LOGDIR/energy.log" | sed -E 's/.*per_iter_ms=([0-9.]+).*/\1/')
+SMS=$(grep -m1 '^SMs:' "$LOGDIR/env.txt" | awk '{print $2}')
+ENERGY=$(awk -F', *' -v per="$PER_E" -v sms="${SMS:-58}" -v bench="$BENCH" '
+  function med(a, n,   i, j, t) {
+    for (i = 2; i <= n; i++) { t = a[i]; for (j = i - 1; j >= 1 && a[j] > t; j--) a[j + 1] = a[j]; a[j + 1] = t }
+    return (n % 2) ? a[(n + 1) / 2] : (a[n / 2] + a[n / 2 + 1]) / 2
+  }
+  $3 + 0 >= 90 { n++; c[n] = $1 + 0; p[n] = $2 + 0 }   # busy samples only (skips CPU setup)
+  END {
+    if (!n || per == "") { print "n/a"; exit }
+    split(bench, d, " "); f = 2 * d[1] * (d[2] * d[3] + d[3] * d[4] + d[4] * d[5])
+    mc = med(c, n); mp = med(p, n); tf = f / (per / 1000) / 1e12
+    pk = sms * 128 * 2 * mc * 1e6 / 1e12   # sm_89: 128 FP32 lanes per SM
+    printf "%.2f ms/pass | SM %.0f MHz, %.1f W (median of %d busy samples) | %.2f TFLOPS = %.0f%% of %.1f at this clock | %.0f GFLOP/J",
+      per, mc, mp, n, tf, 100 * tf / pk, pk, f / 1e9 / (mp * per / 1000)
+  }' "$LOGDIR/energy_samples.csv")
+echo "$ENERGY" | tee "$LOGDIR/energy_summary.txt"
+
 # After timing (ncu replays kernels). Each kernel appears twice: warm-up + timed call.
 section "Nsight Compute profile (student, benchmark size)"
 NCU_STATUS="ncu not found on PATH"
@@ -220,6 +246,7 @@ section "Summary"
   echo "Spills:       $SPILLS"
   echo "FFMA regs:    $(cat "$LOGDIR/sass_ffma.txt")"
   echo "Control:      $(cat "$LOGDIR/sass_ctrl.txt")"
+  echo "Sustained:    $ENERGY"
   echo "Timing:       $REPEATS repeats, --iters $ITERS, ./mlp $BENCH"
   echo "  median baseline per_iter_ms: $BASE_MED"
   echo "  median student  per_iter_ms: $STU_MED"
