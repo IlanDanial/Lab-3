@@ -4,7 +4,7 @@
 # reuse-cache hits per operand slot, bank reads per FFMA, and FFMAs whose bank reads
 # share a bank under a 2-bank (register parity) model, an estimate since Ada's banking is undocumented.
 cuobjdump -sass "${1:-mlp}" | awk '
-  /Function : / { infn = ($0 ~ /matmul_student/) }
+  /Function : / { infn = 0; if ($0 ~ /matmul_student/ && !seen) { infn = 1; seen = 1 } }
   infn && /[ \t]FFMA[ .]/ {
     s = $0; sub(/.*FFMA[^ ]* +/, "", s); sub(/ *;.*/, "", s)
     if (split(s, op, ",") < 4) next

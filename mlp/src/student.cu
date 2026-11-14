@@ -85,10 +85,13 @@ constexpr int WC = 4 * TILE;  // stride between a thread's float4 column groups 
 // Output column of a thread's j-th value: groups of 4 neighbors, WC apart
 __device__ __forceinline__ int wcol(int tx, int j) { return 4 * tx + WC * (j / 4) + j % 4; }
 
+// Y = X * W + bias, then ReLU if RELU (bias and ReLU fused into the store)
 // Thread owns rows ty + TILE*i and cols wcol(tx, j); W is read 4 columns per float4
 // Launch bounds keep 2 blocks per SM (<= 128 registers)
+template <bool RELU>
 __global__ void __launch_bounds__(TILE * TILE, 2)
-matmul_student(const float* X, int ldx, const float* W, int ldw, float* Y, int ldy, int B, int n_in, int n_out) {
+matmul_student(const float* X, int ldx, const float* W, int ldw, const float* bias, float* Y, int ldy,
+               int B, int n_in, int n_out) {
   __shared__ __align__(16) float Xs[NBUF][BT][BK];
   __shared__ __align__(16) float Ws[NBUF][BK][BT];
   const int tx = threadIdx.x, ty = threadIdx.y, tid = ty * TILE + tx;
@@ -141,28 +144,27 @@ matmul_student(const float* X, int ldx, const float* W, int ldw, float* Y, int l
     }
     if constexpr (NBUF == 1) __syncthreads();  // single buffer: protect it before the next load
   }
-  // One float4 store per group of 4 neighboring columns. ldy is a multiple of 4, so if the group
-  // starts before n_out it ends inside the row; lanes past n_out are padding and hold exact zeros
-  // (W's padding columns are zero), so the padding stays zero.
+  // One float4 store per group of 4 neighboring columns, with bias and ReLU applied in registers.
+  // ldy and the bias length are multiples of 4, so a group that starts before n_out ends inside the
+  // row; lanes past n_out are padding: acc and bias are both 0 there, so the padding stays zero.
+  float4 b4[R / 4];
+  for (int g = 0; g < R / 4; g++) {
+    const int c = col0 + wcol(tx, 4 * g);
+    b4[g] = c < n_out ? *reinterpret_cast<const float4*>(&bias[c]) : make_float4(0.f, 0.f, 0.f, 0.f);
+  }
   for (int i = 0; i < R; i++) {
     const int r = row0 + ty + TILE * i;
     if (r >= B) continue;
     for (int g = 0; g < R / 4; g++) {
       const int c = col0 + wcol(tx, 4 * g);
-      if (c < n_out)
-        *reinterpret_cast<float4*>(&Y[r * ldy + c]) =
-            make_float4(acc[i][4 * g], acc[i][4 * g + 1], acc[i][4 * g + 2], acc[i][4 * g + 3]);
+      if (c >= n_out) continue;
+      float4 v = make_float4(acc[i][4 * g] + b4[g].x, acc[i][4 * g + 1] + b4[g].y,
+                             acc[i][4 * g + 2] + b4[g].z, acc[i][4 * g + 3] + b4[g].w);
+      if constexpr (RELU) {
+        v.x = fmaxf(v.x, 0.0f); v.y = fmaxf(v.y, 0.0f); v.z = fmaxf(v.z, 0.0f); v.w = fmaxf(v.w, 0.0f);
+      }
+      *reinterpret_cast<float4*>(&Y[r * ldy + c]) = v;
     }
-  }
-}
-
-__global__ void bias_relu_student(float* Y, int ldy, const float* b, int B, int n_out, int relu) {
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx < B * n_out) {
-    const int r = idx / n_out, c = idx - r * n_out;
-    float v = Y[r * ldy + c] + b[c];
-    if (relu) v = fmaxf(v, 0.0f);
-    Y[r * ldy + c] = v;
   }
 }
 
@@ -191,7 +193,9 @@ void mlp_student_setup(const MlpProblem& p) {
     for (int j = 0; j < n_out; j++)
       for (int k = 0; k < n_in; k++) wt[(size_t)k * ld + j] = p.W[l][(size_t)j * n_in + k];
     upload(&s_W[l], wt.data(), wt.size());
-    upload(&s_b[l], p.b[l], (size_t)n_out);
+    std::vector<float> b(ld, 0.0f);  // bias padded to a multiple of 4 for float4 reads
+    for (int j = 0; j < n_out; j++) b[j] = p.b[l][j];
+    upload(&s_b[l], b.data(), b.size());
   }
   alloc_zero(&s_h1, (size_t)p.B * s_ld[1]);
   alloc_zero(&s_h2, (size_t)p.B * s_ld[2]);
@@ -205,9 +209,10 @@ void mlp_student_compute() {
     const int n_in = s_n[l], n_out = s_n[l + 1], ldx = s_ld[l], ldy = s_ld[l + 1];
     dim3 block(TILE, TILE);
     dim3 grid((n_out + BT - 1) / BT, (s_B + BT - 1) / BT);
-    matmul_student<<<grid, block>>>(in[l], ldx, s_W[l], ldy, outp[l], ldy, s_B, n_in, n_out);
-    const int total = s_B * n_out;
-    bias_relu_student<<<(total + 255) / 256, 256>>>(outp[l], ldy, s_b[l], s_B, n_out, l < MLP_LAYERS - 1 ? 1 : 0);
+    if (l < MLP_LAYERS - 1)  // ReLU on layers 1 and 2, raw logits on layer 3
+      matmul_student<true><<<grid, block>>>(in[l], ldx, s_W[l], ldy, s_b[l], outp[l], ldy, s_B, n_in, n_out);
+    else
+      matmul_student<false><<<grid, block>>>(in[l], ldx, s_W[l], ldy, s_b[l], outp[l], ldy, s_B, n_in, n_out);
   }
   CHECK(cudaGetLastError());
 }
