@@ -21,12 +21,16 @@ static float *s_X = nullptr, *s_W[3] = {nullptr, nullptr, nullptr}, *s_b[3] = {n
 static float *s_h1 = nullptr, *s_h2 = nullptr, *s_out = nullptr;
 
 constexpr int TILE = 16;      // threads per block side
-constexpr int R = 8;          // each thread computes R x R outputs (best in sweep)
-constexpr int BT = TILE * R;  // outputs per block side (128)
-constexpr int BK = 16;        // k-depth of a shared tile (3 stages x 16 KB = 48 KB limit)
+constexpr int RM = 8;         // rows per thread
+constexpr int RN = 8;         // columns per thread (multiple of 4)
+constexpr int BK = 16;        // k-depth of a shared tile
 constexpr int NBUF = 3;       // pipeline stages: 1 = load then compute; N = copy N-1 tiles ahead (cp.async)
 constexpr int ORDER = 0;      // FFMA order per k step: 0 = row by row, 1 = column by column, 2 = snake
-static_assert(BK % 4 == 0 && BT % 4 == 0, "tiles are copied as float4");
+constexpr int MINB = RM * RN <= 64 ? 2 : 1;  // blocks per SM in launch bounds (2 caps registers at 128)
+constexpr int BM = TILE * RM, BN = TILE * RN;  // block tile
+constexpr int SMEM = sizeof(float) * NBUF * BK * (BM + BN);  // dynamic shared bytes per block
+static_assert(BK % 4 == 0 && RN % 4 == 0, "tiles and W are read as float4");
+static_assert(SMEM <= 99 * 1024, "sm_89 shared memory limit per block");
 
 // cp.async as single PTX instructions: the zero-fill size is a register operand, so no branches or calls
 // (__pipeline_memcpy_async with a runtime zfill compiles to a 17-way switch)
@@ -48,14 +52,14 @@ __device__ __forceinline__ void copy4(float* dst, const float* src, bool in) {
   }
 }
 
-// Fill one X tile (BT x BK) and one W tile (BK x BT), one float4 per copy.
+// Fill one X tile (BM x BK) and one W tile (BK x BN), one float4 per copy.
 // Row strides are multiples of 4 with zero padding, so a float4 is fully inside a row or fully past it.
 template <bool ASYNC>
-__device__ __forceinline__ void load_tile(float (*Xs)[BK], float (*Ws)[BT], const float* X, int ldx,
+__device__ __forceinline__ void load_tile(float (*Xs)[BK], float (*Ws)[BN], const float* X, int ldx,
                                           const float* W, int ldw, int B, int n_in,
                                           int row0, int col0, int k0, int tid) {
-  constexpr int XQ = BK / 4, WQ = BT / 4;  // float4s per tile row
-  constexpr int NT = TILE * TILE, XN = BT * XQ, WN = BK * WQ;  // threads, float4s per tile
+  constexpr int XQ = BK / 4, WQ = BN / 4;  // float4s per tile row
+  constexpr int NT = TILE * TILE, XN = BM * XQ, WN = BK * WQ;  // threads, float4s per tile
   // Fixed trip counts, fully unrolled: no loop branches or reconvergence (BSSY/BSYNC) per tile.
   // The guard folds away when the tile size is a multiple of the thread count.
 #pragma unroll
@@ -79,7 +83,6 @@ __device__ __forceinline__ void load_tile(float (*Xs)[BK], float (*Ws)[BT], cons
 }
 
 // Y[r][c] = sum_k X[r][k] * W[k][c]      (W transposed in setup: IN x OUT)
-static_assert(R % 4 == 0, "W is read as float4");
 constexpr int WC = 4 * TILE;  // stride between a thread's float4 column groups (64)
 
 // Output column of a thread's j-th value: groups of 4 neighbors, WC apart
@@ -87,17 +90,17 @@ __device__ __forceinline__ int wcol(int tx, int j) { return 4 * tx + WC * (j / 4
 
 // Y = X * W + bias, then ReLU if RELU (bias and ReLU fused into the store)
 // Thread owns rows ty + TILE*i and cols wcol(tx, j); W is read 4 columns per float4
-// Launch bounds keep 2 blocks per SM (<= 128 registers)
 template <bool RELU>
-__global__ void __launch_bounds__(TILE * TILE, 2)
+__global__ void __launch_bounds__(TILE * TILE, MINB)
 matmul_student(const float* X, int ldx, const float* W, int ldw, const float* bias, float* Y, int ldy,
                int B, int n_in, int n_out) {
-  __shared__ __align__(16) float Xs[NBUF][BT][BK];
-  __shared__ __align__(16) float Ws[NBUF][BK][BT];
+  extern __shared__ __align__(16) float smem[];  // dynamic, sized by SMEM at launch
+  auto Xs = reinterpret_cast<float (*)[BM][BK]>(smem);
+  auto Ws = reinterpret_cast<float (*)[BK][BN]>(smem + NBUF * BM * BK);
   const int tx = threadIdx.x, ty = threadIdx.y, tid = ty * TILE + tx;
-  const int row0 = blockIdx.y * BT, col0 = blockIdx.x * BT;
+  const int row0 = blockIdx.y * BM, col0 = blockIdx.x * BN;
   const int nt = (n_in + BK - 1) / BK;
-  float acc[R][R] = {};
+  float acc[RM][RN] = {};
   if constexpr (NBUF > 1) {
 #pragma unroll
     for (int s = 0; s < NBUF - 1; s++) {  // prologue: start tiles 0 .. NBUF-2
@@ -121,23 +124,23 @@ matmul_student(const float* X, int ldx, const float* W, int ldw, const float* bi
     }
 #pragma unroll
     for (int k = 0; k < BK; k++) {
-      float x[R], w[R];
-      for (int i = 0; i < R; i++) x[i] = Xs[cur][ty + TILE * i][k];
-      for (int g = 0; g < R / 4; g++) {
+      float x[RM], w[RN];
+      for (int i = 0; i < RM; i++) x[i] = Xs[cur][ty + TILE * i][k];
+      for (int g = 0; g < RN / 4; g++) {
         const float4 v = *reinterpret_cast<const float4*>(&Ws[cur][k][wcol(tx, 4 * g)]);
         w[4 * g] = v.x; w[4 * g + 1] = v.y; w[4 * g + 2] = v.z; w[4 * g + 3] = v.w;
       }
       // Order decides which operand repeats between consecutive FFMAs (register reuse cache)
       if constexpr (ORDER == 0) {
-        for (int i = 0; i < R; i++)
-          for (int j = 0; j < R; j++) acc[i][j] += x[i] * w[j];
+        for (int i = 0; i < RM; i++)
+          for (int j = 0; j < RN; j++) acc[i][j] += x[i] * w[j];
       } else if constexpr (ORDER == 1) {
-        for (int j = 0; j < R; j++)
-          for (int i = 0; i < R; i++) acc[i][j] += x[i] * w[j];
+        for (int j = 0; j < RN; j++)
+          for (int i = 0; i < RM; i++) acc[i][j] += x[i] * w[j];
       } else {  // snake: odd rows run right to left, so each row change shares w[j]
-        for (int i = 0; i < R; i++)
-          for (int jj = 0; jj < R; jj++) {
-            const int j = (i & 1) ? R - 1 - jj : jj;
+        for (int i = 0; i < RM; i++)
+          for (int jj = 0; jj < RN; jj++) {
+            const int j = (i & 1) ? RN - 1 - jj : jj;
             acc[i][j] += x[i] * w[j];
           }
       }
@@ -147,15 +150,15 @@ matmul_student(const float* X, int ldx, const float* W, int ldw, const float* bi
   // One float4 store per group of 4 neighboring columns, with bias and ReLU applied in registers.
   // ldy and the bias length are multiples of 4, so a group that starts before n_out ends inside the
   // row; lanes past n_out are padding: acc and bias are both 0 there, so the padding stays zero.
-  float4 b4[R / 4];
-  for (int g = 0; g < R / 4; g++) {
+  float4 b4[RN / 4];
+  for (int g = 0; g < RN / 4; g++) {
     const int c = col0 + wcol(tx, 4 * g);
     b4[g] = c < n_out ? *reinterpret_cast<const float4*>(&bias[c]) : make_float4(0.f, 0.f, 0.f, 0.f);
   }
-  for (int i = 0; i < R; i++) {
+  for (int i = 0; i < RM; i++) {
     const int r = row0 + ty + TILE * i;
     if (r >= B) continue;
-    for (int g = 0; g < R / 4; g++) {
+    for (int g = 0; g < RN / 4; g++) {
       const int c = col0 + wcol(tx, 4 * g);
       if (c >= n_out) continue;
       float4 v = make_float4(acc[i][4 * g] + b4[g].x, acc[i][4 * g + 1] + b4[g].y,
@@ -180,6 +183,13 @@ static void alloc_zero(float** d, size_t count) {
   CHECK(cudaMemset(*d, 0, count * sizeof(float)));
 }
 
+// Dynamic shared memory over 48 KB must be opted into; max carveout keeps 2 blocks/SM possible
+template <typename K>
+static void allow_smem(K kernel) {
+  CHECK(cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, SMEM));
+  CHECK(cudaFuncSetAttribute(kernel, cudaFuncAttributePreferredSharedMemoryCarveout, cudaSharedmemCarveoutMaxShared));
+}
+
 void mlp_student_setup(const MlpProblem& p) {
   s_B = p.B;
   for (int i = 0; i < 4; i++) { s_n[i] = p.n[i]; s_ld[i] = pad4(p.n[i]); }
@@ -200,6 +210,8 @@ void mlp_student_setup(const MlpProblem& p) {
   alloc_zero(&s_h1, (size_t)p.B * s_ld[1]);
   alloc_zero(&s_h2, (size_t)p.B * s_ld[2]);
   alloc_zero(&s_out, (size_t)p.B * s_ld[3]);
+  allow_smem(matmul_student<true>);
+  allow_smem(matmul_student<false>);
 }
 
 void mlp_student_compute() {
@@ -208,11 +220,11 @@ void mlp_student_compute() {
   for (int l = 0; l < MLP_LAYERS; l++) {
     const int n_in = s_n[l], n_out = s_n[l + 1], ldx = s_ld[l], ldy = s_ld[l + 1];
     dim3 block(TILE, TILE);
-    dim3 grid((n_out + BT - 1) / BT, (s_B + BT - 1) / BT);
+    dim3 grid((n_out + BN - 1) / BN, (s_B + BM - 1) / BM);
     if (l < MLP_LAYERS - 1)  // ReLU on layers 1 and 2, raw logits on layer 3
-      matmul_student<true><<<grid, block>>>(in[l], ldx, s_W[l], ldy, s_b[l], outp[l], ldy, s_B, n_in, n_out);
+      matmul_student<true><<<grid, block, SMEM>>>(in[l], ldx, s_W[l], ldy, s_b[l], outp[l], ldy, s_B, n_in, n_out);
     else
-      matmul_student<false><<<grid, block>>>(in[l], ldx, s_W[l], ldy, s_b[l], outp[l], ldy, s_B, n_in, n_out);
+      matmul_student<false><<<grid, block, SMEM>>>(in[l], ldx, s_W[l], ldy, s_b[l], outp[l], ldy, s_B, n_in, n_out);
   }
   CHECK(cudaGetLastError());
 }
