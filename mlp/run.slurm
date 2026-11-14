@@ -200,6 +200,10 @@ if command -v ncu > /dev/null; then
     ncu --import "$LOGDIR/profile.ncu-rep" --page details > "$LOGDIR/profile.txt" 2>&1
     ncu --import "$LOGDIR/profile.ncu-rep" --page raw > "$LOGDIR/profile_raw.txt" 2>&1
     bash profile_table.sh "$LOGDIR/profile.txt" "$LOGDIR/profile_raw.txt" > "$LOGDIR/profile_summary.txt"
+    # Per-instruction stall sampling, layer 1 multiply
+    ncu --kernel-name regex:matmul --launch-count 1 --section SourceCounters --page source --csv --print-source sass \
+      ./mlp $BENCH --iters 1 --skip-ref --skip-baseline > "$LOGDIR/source_sass.csv" 2> "$LOGDIR/ncu_source.log"
+    { echo; bash stall_sources.sh "$LOGDIR/source_sass.csv"; } >> "$LOGDIR/profile_summary.txt" 2>&1
     NCU_STATUS="works, see profile_summary.txt (full: profile.txt, profile.ncu-rep)"
   else
     NCU_STATUS="unclear, see ncu.log"

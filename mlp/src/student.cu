@@ -24,8 +24,8 @@ static float *s_h1 = nullptr, *s_h2 = nullptr, *s_out = nullptr;
 constexpr int TILE = 16;      // threads per block side
 constexpr int R = 8;          // each thread computes R x R outputs (best in sweep)
 constexpr int BT = TILE * R;  // outputs per block side (128)
-constexpr int BK = 32;        // k-depth of a shared tile (best in sweep; NBUF=3 needs BK=16 to fit 48 KB)
-constexpr int NBUF = 1;       // pipeline stages: 1 = load then compute; N = copy N-1 tiles ahead (cp.async, measured no faster)
+constexpr int BK = 16;        // k-depth of a shared tile (3 stages x 16 KB = 48 KB limit)
+constexpr int NBUF = 3;       // pipeline stages: 1 = load then compute; N = copy N-1 tiles ahead (cp.async)
 constexpr int ORDER = 0;      // FFMA order per k step: 0 = row by row, 1 = column by column, 2 = snake
 static_assert(BK % 4 == 0 && BT % 4 == 0, "tiles are copied as float4");
 
