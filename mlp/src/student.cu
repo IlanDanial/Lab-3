@@ -105,15 +105,17 @@ matmul_student(const float* X, int ldx, const float* W, int ldw, float* Y, int l
   for (int t = 0; t < nt; t++) {
     const int cur = (NBUF > 1) ? t % NBUF : 0;
     if constexpr (NBUF > 1) {
-      // Start tile t+NBUF-1 into the buffer read in iteration t-1 (freed by its closing sync), then wait for tile t
+      // One sync per tile: wait for tile t, then the sync both publishes it and guarantees
+      // every warp finished tile t-1, so its buffer can be refilled with tile t+NBUF-1
+      cp_async_wait<NBUF - 2>();
+      __syncthreads();
       const int nxt = t + NBUF - 1;
       if (nxt < nt) load_tile<true>(Xs[nxt % NBUF], Ws[nxt % NBUF], X, ldx, W, ldw, B, n_in, row0, col0, nxt * BK, tid);
       cp_async_commit();
-      cp_async_wait<NBUF - 1>();
     } else {
       load_tile<false>(Xs[0], Ws[0], X, ldx, W, ldw, B, n_in, row0, col0, t * BK, tid);
+      __syncthreads();
     }
-    __syncthreads();
 #pragma unroll
     for (int k = 0; k < BK; k++) {
       float x[R], w[R];
@@ -137,7 +139,7 @@ matmul_student(const float* X, int ldx, const float* W, int ldw, float* Y, int l
           }
       }
     }
-    __syncthreads();
+    if constexpr (NBUF == 1) __syncthreads();  // single buffer: protect it before the next load
   }
   for (int i = 0; i < R; i++)
     for (int j = 0; j < R; j++) {
