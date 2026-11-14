@@ -12,6 +12,7 @@
 #include <cstddef>
 #include <vector>
 #include <cuda_runtime.h>
+#include <cuda_pipeline.h>
 #include "cuda_check.h"
 #include "params.h"
 #include "problem.h"
@@ -23,30 +24,58 @@ static float *s_h1 = nullptr, *s_h2 = nullptr, *s_out = nullptr;
 constexpr int TILE = 16;      // threads per block side
 constexpr int R = 8;          // each thread computes R x R outputs (best in sweep)
 constexpr int BT = TILE * R;  // outputs per block side (128)
-constexpr int BK = 32;        // k-depth of a shared tile (best in sweep)
+constexpr int BK = 16;        // k-depth of a shared tile (2 buffers at 32 would exceed 48 KB)
+constexpr int NBUF = 2;       // 2 = copy the next tile in the background (cp.async) while computing
+
+// Fill one X tile (BT x BK) and one W tile (BK x BT); zero-fill past the edges
+template <bool ASYNC>
+__device__ __forceinline__ void load_tile(float (*Xs)[BK], float (*Ws)[BT], const float* X, const float* W,
+                                          int B, int n_in, int n_out, int row0, int col0, int k0, int tid) {
+  for (int e = tid; e < BT * BK; e += TILE * TILE) {
+    const int xr = row0 + e / BK, xk = k0 + e % BK;
+    const int wk = k0 + e / BT, wc = col0 + e % BT;
+    const bool xin = xr < B && xk < n_in, win = wk < n_in && wc < n_out;
+    if constexpr (ASYNC) {
+      // Out of bounds: copy 0 bytes, zero-fill 4 (src kept valid, never read)
+      __pipeline_memcpy_async(&Xs[e / BK][e % BK], xin ? X + xr * n_in + xk : X, 4, xin ? 0 : 4);
+      __pipeline_memcpy_async(&Ws[e / BT][e % BT], win ? W + wk * n_out + wc : W, 4, win ? 0 : 4);
+    } else {
+      Xs[e / BK][e % BK] = xin ? X[xr * n_in + xk] : 0.0f;
+      Ws[e / BT][e % BT] = win ? W[wk * n_out + wc] : 0.0f;
+    }
+  }
+}
 
 // Y[r][c] = sum_k X[r][k] * W[k][c]      (W transposed in setup: IN x OUT)
 // Thread owns rows ty + TILE*i, cols tx + TILE*j: conflict-free shared reads, coalesced writes
-__global__ void matmul_student(const float* X, const float* W, float* Y, int B, int n_in, int n_out) {
-  __shared__ float Xs[BT][BK];
-  __shared__ float Ws[BK][BT];
+// Launch bounds keep 2 blocks per SM (<= 128 registers)
+__global__ void __launch_bounds__(TILE * TILE, 2) matmul_student(const float* X, const float* W, float* Y, int B, int n_in, int n_out) {
+  __shared__ float Xs[NBUF][BT][BK];
+  __shared__ float Ws[NBUF][BK][BT];
   const int tx = threadIdx.x, ty = threadIdx.y, tid = ty * TILE + tx;
   const int row0 = blockIdx.y * BT, col0 = blockIdx.x * BT;
+  const int nt = (n_in + BK - 1) / BK;
   float acc[R][R] = {};
-  for (int k0 = 0; k0 < n_in; k0 += BK) {
-    // Both tiles hold BT*BK values; zero-fill past the edges
-    for (int e = tid; e < BT * BK; e += TILE * TILE) {
-      const int xr = row0 + e / BK, xk = k0 + e % BK;
-      Xs[e / BK][e % BK] = (xr < B && xk < n_in) ? X[xr * n_in + xk] : 0.0f;
-      const int wk = k0 + e / BT, wc = col0 + e % BT;
-      Ws[e / BT][e % BT] = (wk < n_in && wc < n_out) ? W[wk * n_out + wc] : 0.0f;
+  if constexpr (NBUF == 2) {
+    load_tile<true>(Xs[0], Ws[0], X, W, B, n_in, n_out, row0, col0, 0, tid);
+    __pipeline_commit();
+  }
+  for (int t = 0; t < nt; t++) {
+    const int cur = (NBUF == 2) ? (t & 1) : 0;
+    if constexpr (NBUF == 2) {
+      // Start tile t+1 into the other buffer (its readers finished at the last sync), then wait for tile t
+      if (t + 1 < nt) load_tile<true>(Xs[cur ^ 1], Ws[cur ^ 1], X, W, B, n_in, n_out, row0, col0, (t + 1) * BK, tid);
+      __pipeline_commit();
+      __pipeline_wait_prior(1);
+    } else {
+      load_tile<false>(Xs[0], Ws[0], X, W, B, n_in, n_out, row0, col0, t * BK, tid);
     }
     __syncthreads();
 #pragma unroll
     for (int k = 0; k < BK; k++) {
       float x[R], w[R];
-      for (int i = 0; i < R; i++) x[i] = Xs[ty + TILE * i][k];
-      for (int j = 0; j < R; j++) w[j] = Ws[k][tx + TILE * j];
+      for (int i = 0; i < R; i++) x[i] = Xs[cur][ty + TILE * i][k];
+      for (int j = 0; j < R; j++) w[j] = Ws[cur][k][tx + TILE * j];
       for (int i = 0; i < R; i++)
         for (int j = 0; j < R; j++) acc[i][j] += x[i] * w[j];
     }
