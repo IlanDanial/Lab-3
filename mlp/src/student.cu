@@ -47,11 +47,17 @@ __device__ __forceinline__ void load_tile(float (*Xs)[BK], float (*Ws)[BT], cons
 }
 
 // Y[r][c] = sum_k X[r][k] * W[k][c]      (W transposed in setup: IN x OUT)
-// Thread owns rows ty + TILE*i, cols tx + TILE*j: conflict-free shared reads, coalesced writes
+static_assert(R % 4 == 0, "W is read as float4");
+constexpr int WC = 4 * TILE;  // stride between a thread's float4 column groups (64)
+
+// Output column of a thread's j-th value: groups of 4 neighbors, WC apart
+__device__ __forceinline__ int wcol(int tx, int j) { return 4 * tx + WC * (j / 4) + j % 4; }
+
+// Thread owns rows ty + TILE*i and cols wcol(tx, j); W is read 4 columns per float4
 // Launch bounds keep 2 blocks per SM (<= 128 registers)
 __global__ void __launch_bounds__(TILE * TILE, 2) matmul_student(const float* X, const float* W, float* Y, int B, int n_in, int n_out) {
   __shared__ float Xs[NBUF][BT][BK];
-  __shared__ float Ws[NBUF][BK][BT];
+  __shared__ __align__(16) float Ws[NBUF][BK][BT];
   const int tx = threadIdx.x, ty = threadIdx.y, tid = ty * TILE + tx;
   const int row0 = blockIdx.y * BT, col0 = blockIdx.x * BT;
   const int nt = (n_in + BK - 1) / BK;
@@ -75,7 +81,10 @@ __global__ void __launch_bounds__(TILE * TILE, 2) matmul_student(const float* X,
     for (int k = 0; k < BK; k++) {
       float x[R], w[R];
       for (int i = 0; i < R; i++) x[i] = Xs[cur][ty + TILE * i][k];
-      for (int j = 0; j < R; j++) w[j] = Ws[cur][k][tx + TILE * j];
+      for (int g = 0; g < R / 4; g++) {
+        const float4 v = *reinterpret_cast<const float4*>(&Ws[cur][k][wcol(tx, 4 * g)]);
+        w[4 * g] = v.x; w[4 * g + 1] = v.y; w[4 * g + 2] = v.z; w[4 * g + 3] = v.w;
+      }
       for (int i = 0; i < R; i++)
         for (int j = 0; j < R; j++) acc[i][j] += x[i] * w[j];
     }
@@ -83,7 +92,7 @@ __global__ void __launch_bounds__(TILE * TILE, 2) matmul_student(const float* X,
   }
   for (int i = 0; i < R; i++)
     for (int j = 0; j < R; j++) {
-      const int r = row0 + ty + TILE * i, c = col0 + tx + TILE * j;
+      const int r = row0 + ty + TILE * i, c = col0 + wcol(tx, j);
       if (r < B && c < n_out) Y[r * n_out + c] = acc[i][j];
     }
 }
