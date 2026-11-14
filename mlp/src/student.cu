@@ -12,7 +12,6 @@
 #include <cstddef>
 #include <vector>
 #include <cuda_runtime.h>
-#include <cuda_pipeline.h>
 #include "cuda_check.h"
 #include "params.h"
 #include "problem.h"
@@ -29,11 +28,21 @@ constexpr int NBUF = 3;       // pipeline stages: 1 = load then compute; N = cop
 constexpr int ORDER = 0;      // FFMA order per k step: 0 = row by row, 1 = column by column, 2 = snake
 static_assert(BK % 4 == 0 && BT % 4 == 0, "tiles are copied as float4");
 
+// cp.async as single PTX instructions: the zero-fill size is a register operand, so no branches or calls
+// (__pipeline_memcpy_async with a runtime zfill compiles to a 17-way switch)
+__device__ __forceinline__ void cp_async16(float* dst, const float* src, bool in) {
+  const unsigned d = static_cast<unsigned>(__cvta_generic_to_shared(dst));
+  asm volatile("cp.async.cg.shared.global [%0], [%1], 16, %2;\n" :: "r"(d), "l"(src), "r"(in ? 16 : 0) : "memory");
+}
+__device__ __forceinline__ void cp_async_commit() { asm volatile("cp.async.commit_group;\n" ::: "memory"); }
+template <int N>
+__device__ __forceinline__ void cp_async_wait() { asm volatile("cp.async.wait_group %0;\n" :: "n"(N) : "memory"); }
+
 // Copy 4 floats; out of bounds writes zeros and never reads src
 template <bool ASYNC>
 __device__ __forceinline__ void copy4(float* dst, const float* src, bool in) {
   if constexpr (ASYNC) {
-    __pipeline_memcpy_async(dst, src, 16, in ? 0 : 16);
+    cp_async16(dst, src, in);
   } else {
     *reinterpret_cast<float4*>(dst) = in ? *reinterpret_cast<const float4*>(src) : make_float4(0.f, 0.f, 0.f, 0.f);
   }
@@ -78,7 +87,7 @@ matmul_student(const float* X, int ldx, const float* W, int ldw, float* Y, int l
   if constexpr (NBUF > 1) {
     for (int s = 0; s < NBUF - 1; s++) {  // prologue: start tiles 0 .. NBUF-2
       if (s < nt) load_tile<true>(Xs[s], Ws[s], X, ldx, W, ldw, B, n_in, row0, col0, s * BK, tid);
-      __pipeline_commit();
+      cp_async_commit();
     }
   }
   for (int t = 0; t < nt; t++) {
@@ -87,8 +96,8 @@ matmul_student(const float* X, int ldx, const float* W, int ldw, float* Y, int l
       // Start tile t+NBUF-1 into the buffer read in iteration t-1 (freed by its closing sync), then wait for tile t
       const int nxt = t + NBUF - 1;
       if (nxt < nt) load_tile<true>(Xs[nxt % NBUF], Ws[nxt % NBUF], X, ldx, W, ldw, B, n_in, row0, col0, nxt * BK, tid);
-      __pipeline_commit();
-      __pipeline_wait_prior(NBUF - 1);
+      cp_async_commit();
+      cp_async_wait<NBUF - 1>();
     } else {
       load_tile<false>(Xs[0], Ws[0], X, ldx, W, ldw, B, n_in, row0, col0, t * BK, tid);
     }
