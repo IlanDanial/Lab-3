@@ -21,10 +21,10 @@ static float *s_X = nullptr, *s_W[3] = {nullptr, nullptr, nullptr}, *s_b[3] = {n
 static float *s_h1 = nullptr, *s_h2 = nullptr, *s_out = nullptr;
 
 constexpr int TILE = 16;      // threads per block side
-constexpr int RM = 8;         // rows per thread
+constexpr int RM = 16;        // rows per thread
 constexpr int RN = 8;         // columns per thread (multiple of 4)
-constexpr int BK = 16;        // k-depth of a shared tile
-constexpr int NBUF = 3;       // pipeline stages: 1 = load then compute; N = copy N-1 tiles ahead (cp.async)
+constexpr int BK = 32;        // k-depth of a shared tile
+constexpr int NBUF = 2;       // pipeline stages: 1 = load then compute; N = copy N-1 tiles ahead (cp.async)
 constexpr int ORDER = 0;      // FFMA order per k step: 0 = row by row, 1 = column by column, 2 = snake
 constexpr int MINB = RM * RN <= 64 ? 2 : 1;  // blocks per SM in launch bounds (2 caps registers at 128)
 constexpr int BM = TILE * RM, BN = TILE * RN;  // block tile
