@@ -142,6 +142,8 @@ median() {
 }
 ncu_fields() {
   awk '/^ *Duration/ { v = $NF; if ($(NF-1) == "us") v /= 1000; d = v }
+       /^ *Elapsed Cycles/ { v = $NF; gsub(/,/, "", v); cy = v }
+       /^ *SM Frequency/   { f = $NF; if (tolower($(NF-1)) ~ /mhz/) f /= 1000 }
        /L1\/TEX Cache Throughput/  { l1 = $NF }
        /Compute \(SM\) Throughput/ { sm = $NF }
        /Theoretical Occupancy/     { th = $NF }
@@ -149,7 +151,7 @@ ncu_fields() {
        /inst_executed_op_shared_ld\.sum/               { v = $NF; gsub(/,/, "", v); si = v }
        /wavefronts_mem_shared_op_ld\.sum/              { v = $NF; gsub(/,/, "", v); sw = v }
        /bank_conflicts_pipe_lsu_mem_shared_op_ld\.sum/ { v = $NF; gsub(/,/, "", v); sc = v }
-       END { printf "%s,%s,%s,%s,%s,%s,%s,%s", d, l1, sm, th, ac, si, sw, sc }' "$1"
+       END { printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s", d, l1, sm, th, ac, si, sw, sc, cy, f }' "$1"
 }
 
 declare -A MED MIN MAX RUNS
@@ -160,10 +162,10 @@ for key in "${CONFIGS[@]}"; do
 done
 
 CSV="$LOGDIR/sweep.csv"
-echo "config,RM,RN,BK,NBUF,check,median_ms,min_ms,max_ms,runs,vs_ref,regs,local_bytes,smem_bytes,layer1_ms_ncu,L1_pct,SM_pct,theor_occ_pct,achieved_occ_pct,shld_inst,shld_wavefronts,shld_conflicts" > "$CSV"
+echo "config,RM,RN,BK,NBUF,check,median_ms,min_ms,max_ms,runs,vs_ref,regs,local_bytes,smem_bytes,layer1_ms_ncu,L1_pct,SM_pct,theor_occ_pct,achieved_occ_pct,shld_inst,shld_wavefronts,shld_conflicts,layer1_cycles,layer1_sm_ghz" > "$CSV"
 for key in "${CONFIGS[@]}"; do
   vs=$(awk -v r="${MED[ref]}" -v m="${MED[$key]}" 'BEGIN { if (r + 0 > 0 && m + 0 > 0) printf "%.3f", r / m; else print "n/a" }')
-  if [[ -f "$LOGDIR/$key/ncu.txt" ]]; then nf=$(ncu_fields "$LOGDIR/$key/ncu.txt"); else nf=",,,,,,,"; fi
+  if [[ -f "$LOGDIR/$key/ncu.txt" ]]; then nf=$(ncu_fields "$LOGDIR/$key/ncu.txt"); else nf=",,,,,,,,,"; fi
   echo "$key,${P[$key]},${CHECK[$key]},${MED[$key]},${MIN[$key]},${MAX[$key]},${RUNS[$key]},$vs,${REGS[$key]},${LOCAL[$key]},${SMEM[$key]},$nf" >> "$CSV"
 done
 

@@ -12,6 +12,8 @@ awk '
     match($0, /\([0-9, ]+\)x\([0-9, ]+\)/); g = substr($0, RSTART, RLENGTH); gsub(/ /, "", g); grid[n] = g
   }
   /^ *Duration/ { v = $NF; if ($(NF-1) == "us") v /= 1000; if ($(NF-1) == "ns") v /= 1e6; dur[n] = v }
+  /^ *Elapsed Cycles/ { v = $NF; gsub(/,/, "", v); cyc[n] = v }
+  /^ *SM Frequency/   { v = $NF; if (tolower($(NF-1)) ~ /mhz/) v /= 1000; ghz[n] = v }   # varies: ncu does not hold the clock
   /op_ld\.sum/ && /requests/ { v = $NF; gsub(/,/, "", v); req[n] = v }
   /op_ld\.sum/ && /sectors/  { v = $NF; gsub(/,/, "", v); sec[n] = v }
   /L1\/TEX Hit Rate/          { l1hit[n] = $NF }
@@ -28,13 +30,13 @@ awk '
   /smsp__inst_executed\.sum/           { v = $NF; gsub(/,/, "", v); ins[n] = sprintf("%.1f", v / 1e6) }
   END {
     half = (n % 2 == 0) ? n / 2 : n
-    printf "%-22s %-22s %8s %8s %7s %6s %6s %6s %6s %5s %5s\n", "kernel", "grid x block", "ms", "sect/req", "L1hit%", "L1%", "L2%", "DRAM%", "SM%", "regs", "occ%"
+    printf "%-22s %-22s %8s %7s %5s %8s %7s %6s %6s %6s %6s %5s %5s\n", "kernel", "grid x block", "ms", "Mcyc", "GHz", "sect/req", "L1hit%", "L1%", "L2%", "DRAM%", "SM%", "regs", "occ%"
     for (i = 1; i <= half; i++) {
       spr = (req[i] > 0) ? sprintf("%.2f", sec[i] / req[i]) : "-"
-      printf "%-22s %-22s %8.3f %8s %7.1f %6.1f %6.1f %6.1f %6.1f %5d %5.1f\n", name[i], grid[i], dur[i], spr, l1hit[i], l1[i], l2[i], dram[i], sm[i], regs[i], occ[i]
-      total += dur[i]
+      printf "%-22s %-22s %8.3f %7.3f %5.2f %8s %7.1f %6.1f %6.1f %6.1f %6.1f %5d %5.1f\n", name[i], grid[i], dur[i], cyc[i] / 1e6, ghz[i], spr, l1hit[i], l1[i], l2[i], dram[i], sm[i], regs[i], occ[i]
+      total += dur[i]; tcyc += cyc[i]
     }
-    printf "total kernel time, one pass: %.3f ms (ncu clocks, not comparable to timed runs)\n", total
+    printf "one pass: %.3f ms, %.3f M cycles (compare versions by cycles; ncu clock varies)\n", total, tcyc / 1e6
     if (wc[1] != "") {
       printf "\n%-22s %-22s %10s %9s %9s %8s %10s\n", "kernel", "grid x block", "cyc/issue", "eligible", "noElig%", "issue%", "instr(M)"
       for (i = 1; i <= half; i++)
