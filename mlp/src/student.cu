@@ -25,7 +25,7 @@ constexpr int RM = 16;        // rows per thread
 constexpr int RN = 8;         // columns per thread (multiple of 4)
 constexpr int BK = 32;        // k-depth of a shared tile
 constexpr int NBUF = 2;       // pipeline stages: 1 = load then compute; N = copy N-1 tiles ahead (cp.async)
-constexpr int ORDER = 0;      // FFMA order per k step: 0 = row by row, 1 = column by column, 2 = snake
+constexpr int ORDER = 2;      // FFMA order per k step: 0 = row by row, 1 = column by column, 2 = snake
 constexpr int MINB = RM * RN <= 64 ? 2 : 1;  // blocks per SM in launch bounds (2 caps registers at 128)
 constexpr int BM = TILE * RM, BN = TILE * RN;  // block tile
 constexpr int SMEM = sizeof(float) * NBUF * BK * (BM + BN);  // dynamic shared bytes per block
