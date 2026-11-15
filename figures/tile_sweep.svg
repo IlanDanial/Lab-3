@@ -1,0 +1,173 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="946" height="564" viewBox="0 0 946 564" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#e1e0d9" stroke-width="2"/></pattern></defs>
+<rect width="946" height="564" fill="#fcfcfb"/>
+<text x="24.0" y="34.0" font-size="18" fill="#0b0b0b" text-anchor="start" font-weight="600">Tile sweep of the final kernel: per-thread tile × tile depth and pipeline stages</text>
+<text x="24.0" y="56.0" font-size="12" fill="#52514e" text-anchor="start" font-weight="normal">Median per_iter_ms of 5 runs · ./mlp 4093 1000 1990 1010 500 7 --iters 100 · NVIDIA L4 · job 51423397</text>
+<text x="24.0" y="74.0" font-size="12" fill="#52514e" text-anchor="start" font-weight="normal">Reference (v13 kernel, built on the same node): 3.568 ms. Color: speed vs reference (reference ms / config ms).</text>
+<text x="298.0" y="116.0" font-size="12" fill="#52514e" text-anchor="middle" font-weight="normal">NBUF 2</text>
+<text x="394.0" y="116.0" font-size="12" fill="#52514e" text-anchor="middle" font-weight="normal">NBUF 3</text>
+<text x="490.0" y="116.0" font-size="12" fill="#52514e" text-anchor="middle" font-weight="normal">NBUF 4</text>
+<text x="586.0" y="116.0" font-size="12" fill="#52514e" text-anchor="middle" font-weight="normal">NBUF 2</text>
+<text x="682.0" y="116.0" font-size="12" fill="#52514e" text-anchor="middle" font-weight="normal">NBUF 3</text>
+<text x="778.0" y="116.0" font-size="12" fill="#52514e" text-anchor="middle" font-weight="normal">NBUF 4</text>
+<text x="874.0" y="116.0" font-size="12" fill="#52514e" text-anchor="middle" font-weight="normal">NBUF 2</text>
+<text x="394.0" y="94.0" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="600">BK 8</text>
+<line x1="254" y1="100" x2="534" y2="100" stroke="#898781" stroke-width="1"/>
+<text x="682.0" y="94.0" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="600">BK 16</text>
+<line x1="542" y1="100" x2="822" y2="100" stroke="#898781" stroke-width="1"/>
+<text x="874.0" y="94.0" font-size="12" fill="#0b0b0b" text-anchor="middle" font-weight="600">BK 32</text>
+<line x1="830" y1="100" x2="918" y2="100" stroke="#898781" stroke-width="1"/>
+<text x="24.0" y="116.0" font-size="12" fill="#0b0b0b" text-anchor="start" font-weight="600">Per-thread tile (RM × RN)</text>
+<text x="24.0" y="152.0" font-size="14" fill="#0b0b0b" text-anchor="start" font-weight="600">8 × 8</text>
+<text x="24.0" y="169.0" font-size="11" fill="#52514e" text-anchor="start" font-weight="normal">128 regs · 2 blocks/SM</text>
+<rect x="251" y="129" width="94" height="52" rx="3" fill="#3987e5"><title>8x8, BK 8, NBUF 2: median 3.700 ms (min 3.689, max 3.813), 0.964x ref, 128 regs</title></rect>
+<text x="298.0" y="156.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">3.700</text>
+<text x="298.0" y="172.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.964×</text>
+<rect x="347" y="129" width="94" height="52" rx="3" fill="#256abf"><title>8x8, BK 8, NBUF 3: median 3.588 ms (min 3.555, max 3.671), 0.995x ref, 128 regs</title></rect>
+<text x="394.0" y="156.0" font-size="14" fill="#ffffff" text-anchor="middle" font-weight="600">3.588</text>
+<text x="394.0" y="172.0" font-size="11" fill="#ffffff" text-anchor="middle" font-weight="normal">0.995×</text>
+<rect x="443" y="129" width="94" height="52" rx="3" fill="#256abf"><title>8x8, BK 8, NBUF 4: median 3.581 ms (min 3.574, max 3.660), 0.996x ref, 128 regs</title></rect>
+<text x="490.0" y="156.0" font-size="14" fill="#ffffff" text-anchor="middle" font-weight="600">3.581</text>
+<text x="490.0" y="172.0" font-size="11" fill="#ffffff" text-anchor="middle" font-weight="normal">0.996×</text>
+<rect x="539" y="129" width="94" height="52" rx="3" fill="#184f95"><title>8x8, BK 16, NBUF 2: median 3.551 ms (min 3.530, max 3.631), 1.005x ref, 128 regs</title></rect>
+<text x="586.0" y="156.0" font-size="14" fill="#ffffff" text-anchor="middle" font-weight="600">3.551</text>
+<text x="586.0" y="172.0" font-size="11" fill="#ffffff" text-anchor="middle" font-weight="normal">1.005×</text>
+<rect x="635" y="129" width="94" height="52" rx="3" fill="#184f95"><title>8x8, BK 16, NBUF 3: median 3.525 ms (min 3.517, max 3.599), 1.012x ref, 128 regs</title></rect>
+<text x="682.0" y="156.0" font-size="14" fill="#ffffff" text-anchor="middle" font-weight="600">3.525</text>
+<text x="682.0" y="172.0" font-size="11" fill="#ffffff" text-anchor="middle" font-weight="normal">1.012×</text>
+<rect x="731" y="129" width="94" height="52" fill="url(#hatch)" stroke="#e1e0d9"><title>8x8, BK 16, NBUF 4: not run (shared memory)</title></rect>
+<text x="778.0" y="159.0" font-size="11" fill="#898781" text-anchor="middle" font-weight="normal">shared mem</text>
+<rect x="827" y="129" width="94" height="52" fill="url(#hatch)" stroke="#e1e0d9"><title>8x8, BK 32, NBUF 2: not run (shared memory)</title></rect>
+<text x="874.0" y="159.0" font-size="11" fill="#898781" text-anchor="middle" font-weight="normal">shared mem</text>
+<text x="24.0" y="206.0" font-size="14" fill="#0b0b0b" text-anchor="start" font-weight="600">8 × 12</text>
+<text x="24.0" y="223.0" font-size="11" fill="#52514e" text-anchor="start" font-weight="normal">165–248 regs · 1 block/SM</text>
+<rect x="251" y="183" width="94" height="52" rx="3" fill="#9ec5f4"><title>8x12, BK 8, NBUF 2: median 4.189 ms (min 4.184, max 4.292), 0.852x ref, 165 regs</title></rect>
+<text x="298.0" y="210.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">4.189</text>
+<text x="298.0" y="226.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.852×</text>
+<rect x="347" y="183" width="94" height="52" rx="3" fill="#cde2fb"><title>8x12, BK 8, NBUF 3: median 4.224 ms (min 4.207, max 4.312), 0.845x ref, 168 regs</title></rect>
+<text x="394.0" y="210.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">4.224</text>
+<text x="394.0" y="226.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.845×</text>
+<rect x="443" y="183" width="94" height="52" rx="3" fill="#9ec5f4"><title>8x12, BK 8, NBUF 4: median 4.168 ms (min 4.157, max 4.204), 0.856x ref, 166 regs</title></rect>
+<text x="490.0" y="210.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">4.168</text>
+<text x="490.0" y="226.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.856×</text>
+<rect x="539" y="183" width="94" height="52" rx="3" fill="#6da7ec"><title>8x12, BK 16, NBUF 2: median 3.799 ms (min 3.764, max 3.868), 0.939x ref, 239 regs</title></rect>
+<text x="586.0" y="210.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">3.799</text>
+<text x="586.0" y="226.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.939×</text>
+<rect x="635" y="183" width="94" height="52" rx="3" fill="#6da7ec"><title>8x12, BK 16, NBUF 3: median 3.904 ms (min 3.898, max 3.982), 0.914x ref, 239 regs</title></rect>
+<text x="682.0" y="210.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">3.904</text>
+<text x="682.0" y="226.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.914×</text>
+<rect x="731" y="183" width="94" height="52" rx="3" fill="#3987e5"><title>8x12, BK 16, NBUF 4: median 3.742 ms (min 3.726, max 3.767), 0.954x ref, 227 regs</title></rect>
+<text x="778.0" y="210.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">3.742</text>
+<text x="778.0" y="226.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.954×</text>
+<rect x="827" y="183" width="94" height="52" rx="3" fill="#184f95"><title>8x12, BK 32, NBUF 2: median 3.541 ms (min 3.526, max 3.562), 1.008x ref, 248 regs</title></rect>
+<text x="874.0" y="210.0" font-size="14" fill="#ffffff" text-anchor="middle" font-weight="600">3.541</text>
+<text x="874.0" y="226.0" font-size="11" fill="#ffffff" text-anchor="middle" font-weight="normal">1.008×</text>
+<text x="24.0" y="260.0" font-size="14" fill="#0b0b0b" text-anchor="start" font-weight="600">8 × 16</text>
+<text x="24.0" y="277.0" font-size="11" fill="#52514e" text-anchor="start" font-weight="normal">255 regs · 1 block/SM</text>
+<rect x="251" y="237" width="94" height="52" rx="3" fill="#3987e5"><title>8x16, BK 8, NBUF 2: median 3.717 ms (min 3.712, max 3.728), 0.960x ref, 255 regs</title></rect>
+<text x="298.0" y="264.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">3.717</text>
+<text x="298.0" y="280.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.960×</text>
+<rect x="347" y="237" width="94" height="52" rx="3" fill="#6da7ec"><title>8x16, BK 8, NBUF 3: median 3.800 ms (min 3.771, max 3.834), 0.939x ref, 255 regs</title></rect>
+<text x="394.0" y="264.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">3.800</text>
+<text x="394.0" y="280.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.939×</text>
+<rect x="443" y="237" width="94" height="52" rx="3" fill="#3987e5"><title>8x16, BK 8, NBUF 4: median 3.708 ms (min 3.673, max 3.716), 0.962x ref, 255 regs</title></rect>
+<text x="490.0" y="264.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">3.708</text>
+<text x="490.0" y="280.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.962×</text>
+<rect x="539" y="237" width="94" height="52" rx="3" fill="#184f95"><title>8x16, BK 16, NBUF 2: median 3.548 ms (min 3.534, max 3.557), 1.006x ref, 255 regs</title></rect>
+<text x="586.0" y="264.0" font-size="14" fill="#ffffff" text-anchor="middle" font-weight="600">3.548</text>
+<text x="586.0" y="280.0" font-size="11" fill="#ffffff" text-anchor="middle" font-weight="normal">1.006×</text>
+<rect x="635" y="237" width="94" height="52" rx="3" fill="#256abf"><title>8x16, BK 16, NBUF 3: median 3.621 ms (min 3.611, max 3.645), 0.985x ref, 255 regs</title></rect>
+<text x="682.0" y="264.0" font-size="14" fill="#ffffff" text-anchor="middle" font-weight="600">3.621</text>
+<text x="682.0" y="280.0" font-size="11" fill="#ffffff" text-anchor="middle" font-weight="normal">0.985×</text>
+<rect x="731" y="237" width="94" height="52" rx="3" fill="#184f95"><title>8x16, BK 16, NBUF 4: median 3.554 ms (min 3.534, max 3.562), 1.004x ref, 255 regs</title></rect>
+<text x="778.0" y="264.0" font-size="14" fill="#ffffff" text-anchor="middle" font-weight="600">3.554</text>
+<text x="778.0" y="280.0" font-size="11" fill="#ffffff" text-anchor="middle" font-weight="normal">1.004×</text>
+<rect x="827" y="237" width="94" height="52" rx="3" fill="#184f95"><title>8x16, BK 32, NBUF 2: median 3.542 ms (min 3.524, max 3.545), 1.007x ref, 255 regs</title></rect>
+<text x="874.0" y="264.0" font-size="14" fill="#ffffff" text-anchor="middle" font-weight="600">3.542</text>
+<text x="874.0" y="280.0" font-size="11" fill="#ffffff" text-anchor="middle" font-weight="normal">1.007×</text>
+<text x="24.0" y="314.0" font-size="14" fill="#0b0b0b" text-anchor="start" font-weight="600">16 × 8</text>
+<text x="24.0" y="331.0" font-size="11" fill="#52514e" text-anchor="start" font-weight="normal">253–255 regs · 1 block/SM</text>
+<rect x="251" y="291" width="94" height="52" rx="3" fill="#3987e5"><title>16x8, BK 8, NBUF 2: median 3.669 ms (min 3.666, max 3.684), 0.972x ref, 255 regs</title></rect>
+<text x="298.0" y="318.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">3.669</text>
+<text x="298.0" y="334.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.972×</text>
+<rect x="347" y="291" width="94" height="52" rx="3" fill="#3987e5"><title>16x8, BK 8, NBUF 3: median 3.696 ms (min 3.691, max 3.701), 0.965x ref, 255 regs</title></rect>
+<text x="394.0" y="318.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">3.696</text>
+<text x="394.0" y="334.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.965×</text>
+<rect x="443" y="291" width="94" height="52" rx="3" fill="#3987e5"><title>16x8, BK 8, NBUF 4: median 3.702 ms (min 3.679, max 3.716), 0.964x ref, 253 regs</title></rect>
+<text x="490.0" y="318.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">3.702</text>
+<text x="490.0" y="334.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.964×</text>
+<rect x="539" y="291" width="94" height="52" rx="3" fill="#184f95"><title>16x8, BK 16, NBUF 2: median 3.534 ms (min 3.530, max 3.547), 1.010x ref, 255 regs</title></rect>
+<text x="586.0" y="318.0" font-size="14" fill="#ffffff" text-anchor="middle" font-weight="600">3.534</text>
+<text x="586.0" y="334.0" font-size="11" fill="#ffffff" text-anchor="middle" font-weight="normal">1.010×</text>
+<rect x="635" y="291" width="94" height="52" rx="3" fill="#184f95"><title>16x8, BK 16, NBUF 3: median 3.551 ms (min 3.529, max 3.555), 1.005x ref, 255 regs</title></rect>
+<text x="682.0" y="318.0" font-size="14" fill="#ffffff" text-anchor="middle" font-weight="600">3.551</text>
+<text x="682.0" y="334.0" font-size="11" fill="#ffffff" text-anchor="middle" font-weight="normal">1.005×</text>
+<rect x="731" y="291" width="94" height="52" rx="3" fill="#184f95"><title>16x8, BK 16, NBUF 4: median 3.536 ms (min 3.522, max 3.552), 1.009x ref, 255 regs</title></rect>
+<text x="778.0" y="318.0" font-size="14" fill="#ffffff" text-anchor="middle" font-weight="600">3.536</text>
+<text x="778.0" y="334.0" font-size="11" fill="#ffffff" text-anchor="middle" font-weight="normal">1.009×</text>
+<rect x="827" y="291" width="94" height="52" rx="3" fill="#0d366b"><title>16x8, BK 32, NBUF 2: median 3.478 ms (min 3.458, max 3.486), 1.026x ref, 255 regs</title></rect>
+<text x="874.0" y="318.0" font-size="14" fill="#ffffff" text-anchor="middle" font-weight="600">3.478</text>
+<text x="874.0" y="334.0" font-size="11" fill="#ffffff" text-anchor="middle" font-weight="normal">1.026×</text>
+<rect x="829" y="293" width="90" height="48" rx="2" fill="none" stroke="#ffffff" stroke-width="2"/>
+<text x="24.0" y="368.0" font-size="14" fill="#0b0b0b" text-anchor="start" font-weight="600">12 × 12</text>
+<text x="24.0" y="385.0" font-size="11" fill="#52514e" text-anchor="start" font-weight="normal">255 regs · 1 block/SM</text>
+<rect x="251" y="345" width="94" height="52" rx="3" fill="#9ec5f4"><title>12x12, BK 8, NBUF 2: median 4.052 ms (min 4.027, max 4.097), 0.881x ref, 255 regs</title></rect>
+<text x="298.0" y="372.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">4.052</text>
+<text x="298.0" y="388.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.881×</text>
+<rect x="347" y="345" width="94" height="52" rx="3" fill="#9ec5f4"><title>12x12, BK 8, NBUF 3: median 4.096 ms (min 4.044, max 4.119), 0.871x ref, 255 regs</title></rect>
+<text x="394.0" y="372.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">4.096</text>
+<text x="394.0" y="388.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.871×</text>
+<rect x="443" y="345" width="94" height="52" rx="3" fill="#9ec5f4"><title>12x12, BK 8, NBUF 4: median 4.119 ms (min 4.061, max 4.148), 0.866x ref, 255 regs</title></rect>
+<text x="490.0" y="372.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">4.119</text>
+<text x="490.0" y="388.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.866×</text>
+<rect x="539" y="345" width="94" height="52" rx="3" fill="#6da7ec"><title>12x12, BK 16, NBUF 2: median 3.875 ms (min 3.867, max 3.919), 0.921x ref, 255 regs</title></rect>
+<text x="586.0" y="372.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">3.875</text>
+<text x="586.0" y="388.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.921×</text>
+<rect x="635" y="345" width="94" height="52" rx="3" fill="#6da7ec"><title>12x12, BK 16, NBUF 3: median 3.892 ms (min 3.879, max 3.907), 0.917x ref, 255 regs</title></rect>
+<text x="682.0" y="372.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">3.892</text>
+<text x="682.0" y="388.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.917×</text>
+<rect x="731" y="345" width="94" height="52" rx="3" fill="#6da7ec"><title>12x12, BK 16, NBUF 4: median 3.888 ms (min 3.878, max 3.901), 0.918x ref, 255 regs</title></rect>
+<text x="778.0" y="372.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">3.888</text>
+<text x="778.0" y="388.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.918×</text>
+<rect x="827" y="345" width="94" height="52" rx="3" fill="#6da7ec"><title>12x12, BK 32, NBUF 2: median 3.872 ms (min 3.850, max 3.883), 0.922x ref, 255 regs</title></rect>
+<text x="874.0" y="372.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">3.872</text>
+<text x="874.0" y="388.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.922×</text>
+<text x="24.0" y="422.0" font-size="14" fill="#0b0b0b" text-anchor="start" font-weight="600">12 × 16</text>
+<text x="24.0" y="439.0" font-size="11" fill="#52514e" text-anchor="start" font-weight="normal">255 regs · 1 block/SM</text>
+<rect x="251" y="399" width="94" height="52" rx="3" fill="#cde2fb"><title>12x16, BK 8, NBUF 2: median 4.441 ms (min 4.427, max 4.456), 0.803x ref, 255 regs</title></rect>
+<text x="298.0" y="426.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">4.441</text>
+<text x="298.0" y="442.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.803×</text>
+<rect x="347" y="399" width="94" height="52" rx="3" fill="#cde2fb"><title>12x16, BK 8, NBUF 3: median 4.962 ms (min 4.954, max 4.964), 0.719x ref, 255 regs</title></rect>
+<text x="394.0" y="426.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">4.962</text>
+<text x="394.0" y="442.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.719×</text>
+<rect x="443" y="399" width="94" height="52" rx="3" fill="#cde2fb"><title>12x16, BK 8, NBUF 4: median 4.440 ms (min 4.431, max 4.470), 0.804x ref, 255 regs</title></rect>
+<text x="490.0" y="426.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">4.440</text>
+<text x="490.0" y="442.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.804×</text>
+<rect x="539" y="399" width="94" height="52" rx="3" fill="#6da7ec"><title>12x16, BK 16, NBUF 2: median 3.910 ms (min 3.896, max 3.923), 0.913x ref, 255 regs</title></rect>
+<text x="586.0" y="426.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">3.910</text>
+<text x="586.0" y="442.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.913×</text>
+<rect x="635" y="399" width="94" height="52" rx="3" fill="#cde2fb"><title>12x16, BK 16, NBUF 3: median 4.598 ms (min 4.581, max 4.612), 0.776x ref, 255 regs</title></rect>
+<text x="682.0" y="426.0" font-size="14" fill="#0b0b0b" text-anchor="middle" font-weight="600">4.598</text>
+<text x="682.0" y="442.0" font-size="11" fill="#0b0b0b" text-anchor="middle" font-weight="normal">0.776×</text>
+<rect x="731" y="399" width="94" height="52" fill="url(#hatch)" stroke="#e1e0d9"><title>12x16, BK 16, NBUF 4: not run (shared memory)</title></rect>
+<text x="778.0" y="429.0" font-size="11" fill="#898781" text-anchor="middle" font-weight="normal">shared mem</text>
+<rect x="827" y="399" width="94" height="52" fill="url(#hatch)" stroke="#e1e0d9"><title>12x16, BK 32, NBUF 2: not run (shared memory)</title></rect>
+<text x="874.0" y="429.0" font-size="11" fill="#898781" text-anchor="middle" font-weight="normal">shared mem</text>
+<text x="24.0" y="490.0" font-size="12" fill="#0b0b0b" text-anchor="start" font-weight="600">Speed vs reference</text>
+<rect x="170" y="478" width="16" height="16" rx="3" fill="#0d366b"/>
+<text x="192.0" y="490.0" font-size="12" fill="#52514e" text-anchor="start" font-weight="normal">≥ 1.02</text>
+<rect x="260" y="478" width="16" height="16" rx="3" fill="#184f95"/>
+<text x="282.0" y="490.0" font-size="12" fill="#52514e" text-anchor="start" font-weight="normal">1.00–1.02</text>
+<rect x="374" y="478" width="16" height="16" rx="3" fill="#256abf"/>
+<text x="396.0" y="490.0" font-size="12" fill="#52514e" text-anchor="start" font-weight="normal">0.98–1.00</text>
+<rect x="488" y="478" width="16" height="16" rx="3" fill="#3987e5"/>
+<text x="510.0" y="490.0" font-size="12" fill="#52514e" text-anchor="start" font-weight="normal">0.95–0.98</text>
+<rect x="602" y="478" width="16" height="16" rx="3" fill="#6da7ec"/>
+<text x="624.0" y="490.0" font-size="12" fill="#52514e" text-anchor="start" font-weight="normal">0.90–0.95</text>
+<rect x="716" y="478" width="16" height="16" rx="3" fill="#9ec5f4"/>
+<text x="738.0" y="490.0" font-size="12" fill="#52514e" text-anchor="start" font-weight="normal">0.85–0.90</text>
+<rect x="830" y="478" width="16" height="16" rx="3" fill="#cde2fb"/>
+<text x="852.0" y="490.0" font-size="12" fill="#52514e" text-anchor="start" font-weight="normal">&lt; 0.85</text>
+<text x="24.0" y="520.0" font-size="12" fill="#52514e" text-anchor="start" font-weight="normal">Best (outlined): 16 × 8, BK 32, NBUF 2, 3.478 ms, 1.026× the reference. Hatched: not run (over 99 KB of shared memory, or over 48 KB for a 2-block config).</text>
+<text x="24.0" y="540.0" font-size="12" fill="#52514e" text-anchor="start" font-weight="normal">Every config with more than 64 outputs per thread needs 165–255 registers, which allows only 1 block (8 warps) per SM.</text>
+</svg>
